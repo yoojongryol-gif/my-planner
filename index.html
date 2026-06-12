@@ -1136,6 +1136,7 @@ async function syncNow(silent){
     for(const gid of (state.gdel||[]).slice()){
       try{const r=await gFetch(CAL+"/"+encodeURIComponent(gid),{method:"DELETE"});if(r.ok||r.status===410||r.status===404)state.gdel=state.gdel.filter(x=>x!==gid);}catch(e){}
     }
+    let pushFail=0,pushErr="";
     for(const t of state.tasks.filter(x=>x.gsync==="pending")){
       const body=taskToEvent(t);
       try{
@@ -1143,12 +1144,14 @@ async function syncNow(silent){
                    :await gFetch(CAL,{method:"POST",body:JSON.stringify(body)});
         if(r.status===404&&t.gid){t.gid=null;r=await gFetch(CAL,{method:"POST",body:JSON.stringify(body)});}
         if(r.ok){const ev=await r.json();t.gid=ev.id;t.gsync="synced";}
-      }catch(e){}
+        else{pushFail++;if(!pushErr)pushErr="HTTP "+r.status+" "+(((await r.text())||"").replace(/\s+/g," ")).slice(0,150);}
+      }catch(e){pushFail++;if(!pushErr)pushErr=String(e).slice(0,150);}
     }
     save();
     await pullChanges();
     state.gLast=Date.now();save();renderAll();
-    updateSyncUI("ok");if(!silent)toast("동기화 완료 ✓");
+    if(pushFail){updateSyncUI("err");if(!silent)toast("동기화 실패 "+pushFail+"건 · "+pushErr);}
+    else{updateSyncUI("ok");if(!silent)toast("동기화 완료 ✓");}
   }catch(e){updateSyncUI("err");if(!silent)toast("동기화 실패 — 잠시 후 다시 시도");}
   G.syncing=false;
 }
