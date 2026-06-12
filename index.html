@@ -2,6 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -292,13 +294,13 @@
   <div class="sheet">
     <div class="grab"></div>
     <h3 id="sheetTitle">새 할일</h3>
-    <label class="fld">✨ 빠른 입력 <small style="color:var(--muted);font-weight:400">예: 6/15 오후 3시 회의</small></label>
+    <label class="fld">✨ 빠른 입력 <small style="color:var(--muted);font-weight:400">예: 6/15 강남역에서 오후 3시 회의</small></label>
     <div class="sub-add">
       <input id="fQuick" placeholder="텍스트 붙여넣기 → 날짜·시간 자동 분리" autocomplete="off">
       <button type="button" id="fQuickApply">→</button>
     </div>
     <label class="fld">내용</label>
-    <input id="fTitle" placeholder="무엇을 할까요?" autocomplete="off">
+    <input id="fTitle" placeholder="무엇을 할까요?" autocomplete="off" maxlength="200">
     <label class="fld">카테고리</label>
     <div class="cat-pick" id="catPick"></div>
     <label class="fld">날짜</label>
@@ -308,7 +310,7 @@
       <div><label class="fld">종료 시간</label><select id="fEndTime"></select></div>
     </div>
     <label class="fld">📍 장소</label>
-    <input id="fLoc" placeholder="어디서? (선택)" autocomplete="off">
+    <input id="fLoc" placeholder="어디서? (선택)" autocomplete="off" maxlength="100">
     <label class="fld">반복</label>
     <div class="seg" id="repSeg">
       <button data-r="none" class="on">없음</button>
@@ -652,7 +654,7 @@ function toggleSub(tid,sid){
   const t=state.tasks.find(x=>x.id===tid);if(!t||!t.subs)return;
   const s=t.subs.find(x=>x.id===sid);if(s){s.done=!s.done;save();renderList();}
 }
-function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 
 /* ---------- summary ---------- */
 function renderSummary(){
@@ -961,10 +963,10 @@ function addSub(){
   curSubs.push({id:Date.now()+""+Math.floor(Math.random()*999),text:t,done:false});
   inp.value="";renderSubsEdit();inp.focus();
 }
-/* 자연어 빠른 입력 파서: "6/15 오후 3시 회의" → {title,date,time} */
+/* 자연어 빠른 입력 파서: "6/15 강남역에서 오후 3시 회의" → {title,date,time,loc} */
 function parseSmart(text){
   let t=" "+text.trim()+" ";
-  let date=null,time=null,m;
+  let date=null,time=null,loc=null,m;
   const now=new Date();
   const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   const setRel=off=>{const d=new Date(today);d.setDate(d.getDate()+off);date=ymd(d);};
@@ -977,8 +979,10 @@ function parseSmart(text){
   const apShift=(ap,h)=>{if((ap==="오후"||ap==="저녁"||ap==="밤")&&h<12)return h+12;if((ap==="오전"||ap==="아침"||ap==="새벽")&&h===12)return 0;return h;};
   if(m=t.match(/(오전|오후|저녁|아침|밤|새벽)?\s*(\d{1,2})\s*시(\s*반)?/)){let h=apShift(m[1],+m[2]);if(m[3])h=h;if(h>=0&&h<=23)time=pad(h)+":00";t=t.replace(m[0]," ");}
   else if(m=t.match(/(오전|오후|저녁|아침|밤|새벽)?\s*(\d{1,2}):(\d{2})/)){let h=apShift(m[1],+m[2]);if(h>=0&&h<=23)time=pad(h)+":00";t=t.replace(m[0]," ");}
+  if(m=t.match(/@([^\s@]{1,40})/)){loc=m[1];t=t.replace(m[0]," ");}
+  else if(m=t.match(/\s([가-힣A-Za-z0-9·.\-]{1,30}(?:\s[가-힣A-Za-z0-9·.\-]{1,30})?)에서\s/)){loc=m[1];t=t.replace(m[0]," ");}
   t=t.replace(/\s(에|부터)\s/g," ").replace(/\s+/g," ").trim();
-  return {title:t,date,time};
+  return {title:t,date,time,loc};
 }
 function applyQuick(){
   const raw=document.getElementById("fQuick").value.trim();if(!raw)return;
@@ -986,8 +990,9 @@ function applyQuick(){
   if(r.title)document.getElementById("fTitle").value=r.title;
   if(r.date)document.getElementById("fDate").value=r.date;
   if(r.time)document.getElementById("fTime").value=r.time;
+  if(r.loc)document.getElementById("fLoc").value=r.loc;
   document.getElementById("fQuick").value="";
-  const parts=[];if(r.date)parts.push(r.date);if(r.time)parts.push(fmtTime(r.time));
+  const parts=[];if(r.date)parts.push(r.date);if(r.time)parts.push(fmtTime(r.time));if(r.loc)parts.push("📍"+r.loc);
   toast(parts.length?`✨ ${parts.join(" ")} 인식`:"날짜·시간을 못 찾아 내용만 넣었어요");
 }
 function closeSheet(){document.getElementById("sheet").classList.remove("open");}
