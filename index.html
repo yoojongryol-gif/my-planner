@@ -307,6 +307,8 @@
       <div><label class="fld">시작 시간</label><select id="fTime"></select></div>
       <div><label class="fld">종료 시간</label><select id="fEndTime"></select></div>
     </div>
+    <label class="fld">📍 장소</label>
+    <input id="fLoc" placeholder="어디서? (선택)" autocomplete="off">
     <label class="fld">반복</label>
     <div class="seg" id="repSeg">
       <button data-r="none" class="on">없음</button>
@@ -621,6 +623,7 @@ function renderList(){
         <div class="t-meta">
           <span class="badge cat" style="background:${cat.hex}">${cat.name}</span>
           ${t.time?`<span>🕐 ${fmtTime(t.time)}${t.endTime?" ~ "+fmtTime(t.endTime):""}</span>`:""}
+          ${t.loc?`<span>📍 ${esc(t.loc)}</span>`:""}
           ${t.prio?`<span class="badge prio">★ 중요</span>`:""}
           ${repName?`<span class="badge rep">🔁 ${repName}</span>`:""}
           ${progBadge}
@@ -921,6 +924,7 @@ function openAdd(){
   document.getElementById("fDate").value=selDate;
   document.getElementById("fTime").value="";
   document.getElementById("fEndTime").value="";
+  document.getElementById("fLoc").value="";
   document.getElementById("fPrio").checked=false;
   curSubs=[];renderSubsEdit();
   setRep("none");renderCatPick();
@@ -934,6 +938,7 @@ function openEdit(t){
   document.getElementById("fDate").value=t.date;
   document.getElementById("fTime").value=t.time||"";
   document.getElementById("fEndTime").value=t.endTime||"";
+  document.getElementById("fLoc").value=t.loc||"";
   document.getElementById("fPrio").checked=!!t.prio;
   curSubs=(t.subs||[]).map(s=>({...s}));renderSubsEdit();
   setRep(curRep);renderCatPick();
@@ -994,12 +999,13 @@ function saveTask(){
   const endTime=document.getElementById("fEndTime").value;
   if(time&&endTime&&endTime<=time){toast("종료 시간이 시작 시간보다 빨라요");return;}
   if(!time&&endTime){toast("시작 시간을 먼저 선택하세요");return;}
+  const loc=document.getElementById("fLoc").value.trim();
   const prio=document.getElementById("fPrio").checked;
   if(editId){
     const t=state.tasks.find(x=>x.id===editId);
-    Object.assign(t,{title,date,time,endTime,prio,cat:curCat,rep:curRep,subs:curSubs.map(s=>({...s})),gsync:"pending"});
+    Object.assign(t,{title,date,time,endTime,loc,prio,cat:curCat,rep:curRep,subs:curSubs.map(s=>({...s})),gsync:"pending"});
   }else{
-    state.tasks.push({id:Date.now()+""+Math.floor(Math.random()*999),title,date,time,endTime,prio,cat:curCat,rep:curRep,subs:curSubs.map(s=>({...s})),gsync:"pending"});
+    state.tasks.push({id:Date.now()+""+Math.floor(Math.random()*999),title,date,time,endTime,loc,prio,cat:curCat,rep:curRep,subs:curSubs.map(s=>({...s})),gsync:"pending"});
   }
   save();closeSheet();selDate=date;renderAll();toast(editId?"수정했어요":"추가했어요");scheduleSync();
 }
@@ -1076,6 +1082,7 @@ function pad2(n){return String(n).padStart(2,"0");}
 function taskToEvent(t){
   const body={summary:t.title,colorId:CATCOLOR[t.cat]||"7",
     extendedProperties:{private:{plannerId:t.id,plannerCat:t.cat,plannerPrio:t.prio?"1":"0",plannerRep:t.rep||"none"}}};
+  if(t.loc)body.location=t.loc;
   if(t.time){
     const sd=new Date(t.date+"T"+t.time+":00");
     let ed=t.endTime?new Date(t.date+"T"+t.endTime+":00"):new Date(sd.getTime()+3600000);
@@ -1100,7 +1107,7 @@ function eventToTask(ev){
   }
   let rep="none";
   if(ev.recurrence){const rule=ev.recurrence.find(x=>x.indexOf("RRULE")===0);if(rule){if(/FREQ=DAILY/.test(rule))rep="daily";else if(/FREQ=WEEKLY/.test(rule))rep="weekly";else if(/FREQ=MONTHLY/.test(rule))rep="monthly";else if(/FREQ=YEARLY/.test(rule))rep="yearly";}}
-  return {id:p.plannerId||("g_"+ev.id),title:ev.summary||"(제목 없음)",date,time,endTime,
+  return {id:p.plannerId||("g_"+ev.id),title:ev.summary||"(제목 없음)",date,time,endTime,loc:ev.location||"",
     prio:p.plannerPrio==="1",cat:p.plannerCat||COLORCAT[ev.colorId]||"etc",rep,gid:ev.id,gsync:"synced"};
 }
 function applyRemote(ev){
