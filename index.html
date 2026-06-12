@@ -292,6 +292,11 @@
   <div class="sheet">
     <div class="grab"></div>
     <h3 id="sheetTitle">새 할일</h3>
+    <label class="fld">✨ 빠른 입력 <small style="color:var(--muted);font-weight:400">예: 6/15 오후 3시 회의</small></label>
+    <div class="sub-add">
+      <input id="fQuick" placeholder="텍스트 붙여넣기 → 날짜·시간 자동 분리" autocomplete="off">
+      <button type="button" id="fQuickApply">→</button>
+    </div>
     <label class="fld">내용</label>
     <input id="fTitle" placeholder="무엇을 할까요?" autocomplete="off">
     <label class="fld">카테고리</label>
@@ -911,6 +916,7 @@ function delMemo(id){
 function openAdd(){
   editId=null;curRep="none";curCat="work";
   document.getElementById("sheetTitle").textContent="새 할일";
+  document.getElementById("fQuick").value="";
   document.getElementById("fTitle").value="";
   document.getElementById("fDate").value=selDate;
   document.getElementById("fTime").value="";
@@ -949,6 +955,35 @@ function addSub(){
   const inp=document.getElementById("fSubInput");const t=inp.value.trim();if(!t)return;
   curSubs.push({id:Date.now()+""+Math.floor(Math.random()*999),text:t,done:false});
   inp.value="";renderSubsEdit();inp.focus();
+}
+/* 자연어 빠른 입력 파서: "6/15 오후 3시 회의" → {title,date,time} */
+function parseSmart(text){
+  let t=" "+text.trim()+" ";
+  let date=null,time=null,m;
+  const now=new Date();
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const setRel=off=>{const d=new Date(today);d.setDate(d.getDate()+off);date=ymd(d);};
+  if(/오늘/.test(t)){setRel(0);t=t.replace(/오늘/," ");}
+  else if(/내일/.test(t)){setRel(1);t=t.replace(/내일/," ");}
+  else if(/모레/.test(t)){setRel(2);t=t.replace(/모레/," ");}
+  if(!date&&(m=t.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일?/))){let y=now.getFullYear();if(new Date(y,+m[1]-1,+m[2])<today)y++;date=`${y}-${pad(+m[1])}-${pad(+m[2])}`;t=t.replace(m[0]," ");}
+  else if(!date&&(m=t.match(/(\d{1,2})\/(\d{1,2})/))){let y=now.getFullYear();if(new Date(y,+m[1]-1,+m[2])<today)y++;date=`${y}-${pad(+m[1])}-${pad(+m[2])}`;t=t.replace(m[0]," ");}
+  else if(!date&&(m=t.match(/(\d{1,2})\s*일/))){let y=now.getFullYear(),mo=now.getMonth()+1;if(+m[1]<now.getDate()){mo++;if(mo>12){mo=1;y++;}}date=`${y}-${pad(mo)}-${pad(+m[1])}`;t=t.replace(m[0]," ");}
+  const apShift=(ap,h)=>{if((ap==="오후"||ap==="저녁"||ap==="밤")&&h<12)return h+12;if((ap==="오전"||ap==="아침"||ap==="새벽")&&h===12)return 0;return h;};
+  if(m=t.match(/(오전|오후|저녁|아침|밤|새벽)?\s*(\d{1,2})\s*시(\s*반)?/)){let h=apShift(m[1],+m[2]);if(m[3])h=h;if(h>=0&&h<=23)time=pad(h)+":00";t=t.replace(m[0]," ");}
+  else if(m=t.match(/(오전|오후|저녁|아침|밤|새벽)?\s*(\d{1,2}):(\d{2})/)){let h=apShift(m[1],+m[2]);if(h>=0&&h<=23)time=pad(h)+":00";t=t.replace(m[0]," ");}
+  t=t.replace(/\s(에|부터)\s/g," ").replace(/\s+/g," ").trim();
+  return {title:t,date,time};
+}
+function applyQuick(){
+  const raw=document.getElementById("fQuick").value.trim();if(!raw)return;
+  const r=parseSmart(raw);
+  if(r.title)document.getElementById("fTitle").value=r.title;
+  if(r.date)document.getElementById("fDate").value=r.date;
+  if(r.time)document.getElementById("fTime").value=r.time;
+  document.getElementById("fQuick").value="";
+  const parts=[];if(r.date)parts.push(r.date);if(r.time)parts.push(fmtTime(r.time));
+  toast(parts.length?`✨ ${parts.join(" ")} 인식`:"날짜·시간을 못 찾아 내용만 넣었어요");
 }
 function closeSheet(){document.getElementById("sheet").classList.remove("open");}
 function saveTask(){
@@ -1186,6 +1221,9 @@ function init(){
   document.getElementById("fTitle").addEventListener("keydown",e=>{if(e.key==="Enter")saveTask();});
   document.getElementById("fSubAdd").onclick=addSub;
   document.getElementById("fSubInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addSub();}});
+  document.getElementById("fQuickApply").onclick=applyQuick;
+  document.getElementById("fQuick").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();applyQuick();}});
+  document.getElementById("fQuick").addEventListener("paste",()=>setTimeout(applyQuick,60));
   document.getElementById("menuBtn").onclick=()=>{renderGoogleUI();document.getElementById("menuSheet").classList.add("open");};
   document.getElementById("mExport").onclick=exportData;
   document.getElementById("mImport").onclick=()=>document.getElementById("importFile").click();
