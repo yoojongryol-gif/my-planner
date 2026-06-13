@@ -357,8 +357,8 @@
     <div class="grab"></div>
     <h3 id="sheetTitle">새 할일</h3>
     <label class="fld">✨ 빠른 입력 <small style="color:var(--muted);font-weight:400">예: 6/15 강남역에서 오후 3시 회의</small></label>
-    <div class="sub-add">
-      <input id="fQuick" placeholder="텍스트 붙여넣기 → 날짜·시간 자동 분리" autocomplete="off">
+    <div class="sub-add" style="align-items:stretch">
+      <textarea id="fQuick" rows="2" placeholder="여러 줄 공문도 그대로 붙여넣기 → 제목·날짜·시간·장소 자동 분리" style="flex:1;resize:vertical;min-height:42px"></textarea>
       <button type="button" id="fQuickApply">→</button>
     </div>
     <label class="fld">내용</label>
@@ -1333,9 +1333,9 @@ function parseSmart(text){
   // ── 레이블 줄 파싱 (대 회 명: / 장 소: 처럼 공백 끼어도) ──
   let labelTitle=null,labelLoc=null,labelDT="";
   const isLabel=k=>{k=k.replace(/\s+/g,"");return {
-    title:/(대회명|행사명|제목|내용|모임명|일정명|회의명|훈련명|경기명)/.test(k),
-    loc:/(장소|위치|개최장소|경기장|모이는곳|집결지)/.test(k),
-    dt:/(일시|날짜|일자|기간|시간|날자|개최일|행사일)/.test(k)
+    title:/(대회명|행사명|제목|내용|모임명|일정명|회의명|훈련명|경기명|주제|안건|행사내용)/.test(k),
+    loc:/(장소|위치|주소|개최장소|개최지|경기장|행사장|집결지|집합장소|모임장소|모이는곳|만나는곳)/.test(k),
+    dt:/(일시|날짜|일자|기간|시간|날자|개최일|행사일|훈련일|경기일|모임일)/.test(k)
   };};
   for(const ln of lines){
     const mm=ln.match(/^[\s.·•\-*]*([가-힣A-Za-z][가-힣A-Za-z\s]{0,9}?)\s*[:：]\s*(.+)$/);
@@ -1636,7 +1636,8 @@ function init(){
   document.getElementById("fSubAdd").onclick=addSub;
   document.getElementById("fSubInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addSub();}});
   document.getElementById("fQuickApply").onclick=applyQuick;
-  document.getElementById("fQuick").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();applyQuick();}});
+  // 여러 줄 입력칸: Shift+Enter는 줄바꿈, Enter(단독)는 인식 실행
+  document.getElementById("fQuick").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();applyQuick();}});
   document.getElementById("fQuick").addEventListener("paste",()=>setTimeout(applyQuick,60));
   document.getElementById("menuBtn").onclick=()=>{renderGoogleUI();openOverlay("menuSheet");};
   document.getElementById("mExport").onclick=exportData;
