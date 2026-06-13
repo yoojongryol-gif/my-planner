@@ -166,10 +166,12 @@
   /* modal */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:none;align-items:flex-end;justify-content:center}
   .overlay.open{display:flex}
-  .sheet{background:var(--surface);width:100%;max-width:680px;border-radius:22px 22px 0 0;padding:18px 18px calc(22px + var(--safe-bot));max-height:92vh;overflow-y:auto;animation:up .25s ease}
+  .sheet{position:relative;background:var(--surface);width:100%;max-width:680px;border-radius:22px 22px 0 0;padding:18px 18px calc(22px + var(--safe-bot));max-height:92vh;overflow-y:auto;animation:up .25s ease}
   @keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
-  .sheet h3{margin:2px 0 16px;font-size:18px}
+  .sheet h3{margin:2px 38px 16px 0;font-size:18px}
   .grab{width:40px;height:4px;background:var(--line);border-radius:4px;margin:0 auto 14px}
+  .sheet-close{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;border:none;background:var(--surface2);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3}
+  .sheet-close:active{background:var(--line)}
   label.fld{display:block;font-size:12px;color:var(--muted);margin:12px 0 5px;font-weight:600}
   input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:11px;padding:12px;font-size:15px;font-family:inherit}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
@@ -245,6 +247,11 @@
   .led-del:active{color:var(--red)}
   .led-daygrp{font-size:12px;font-weight:700;color:var(--muted);margin:14px 2px 7px}
   .seg.cardseg{flex-wrap:wrap;height:auto;gap:6px}
+  .led-catgrid{display:flex;gap:7px;flex-wrap:wrap}
+  .led-catopt{border:2px solid var(--line);border-radius:20px;padding:7px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:600;color:var(--text);background:var(--surface)}
+  .led-catopt.sel{color:#fff;border-color:transparent}
+  .led-caticon{flex:0 0 auto}
+  .led-cattag{display:inline-flex;align-items:center;gap:3px;font-weight:600}
 </style>
 </head>
 <body>
@@ -323,6 +330,7 @@
     <div class="card over"><div class="num" id="ledSumExp">0</div><div class="lbl">이번 달 지출</div></div>
     <div class="card done"><div class="num" id="ledSumInc">0</div><div class="lbl">이번 달 수입</div></div>
   </div>
+  <div class="led-cards" id="ledCatFilter"></div>
   <div class="led-cards" id="ledCardFilter"></div>
   <div id="ledgerList"></div>
 </div>
@@ -473,6 +481,8 @@
       <button data-t="expense" class="on">지출</button>
       <button data-t="income">수입</button>
     </div>
+    <label class="fld">카테고리</label>
+    <div class="led-catgrid" id="ledCatPick"></div>
     <label class="fld">금액 (원)</label>
     <input id="ledAmt" type="number" inputmode="numeric" placeholder="0" autocomplete="off">
     <label class="fld">날짜</label>
@@ -504,7 +514,28 @@ let viewY,viewM,selDate,editId=null,curRep="none",curCat="work",filter="all";
 let curTab="cal",editMemoId=null,curMemoPhotos=[],curMemoAudio=null,mediaRec=null,recChunks=[],recStream=null;
 let curSubs=[];
 let curPhotos=[]; // photos being edited in diary sheet
-let editLedId=null,curLedType="expense",ledFilter="all";
+let editLedId=null,curLedType="expense",ledFilter="all",curLedCat="etc",ledCatFilter="all";
+const LED_CATS={
+  food:{name:"식비",icon:"🍔",color:"#f97316"},
+  cafe:{name:"카페·간식",icon:"☕",color:"#d97706"},
+  mart:{name:"장보기",icon:"🛒",color:"#22c55e"},
+  transport:{name:"교통",icon:"🚗",color:"#3b82f6"},
+  living:{name:"생활·공과금",icon:"🏠",color:"#06b6d4"},
+  shopping:{name:"쇼핑",icon:"🛍️",color:"#ec4899"},
+  health:{name:"의료·건강",icon:"🏥",color:"#ef4444"},
+  culture:{name:"문화·여가",icon:"🎬",color:"#8b5cf6"},
+  education:{name:"교육",icon:"📚",color:"#eab308"},
+  social:{name:"경조사",icon:"🎁",color:"#e11d48"},
+  travel:{name:"여행",icon:"✈️",color:"#0ea5e9"},
+  pet:{name:"반려",icon:"🐶",color:"#a16207"},
+  biz:{name:"사업·업무",icon:"💼",color:"#6366f1"},
+  etc:{name:"기타",icon:"💳",color:"#94a3b8"},
+  income_salary:{name:"급여",icon:"💰",color:"#16a34a",inc:1},
+  income_biz:{name:"사업수입",icon:"💵",color:"#15803d",inc:1},
+  income_refund:{name:"환불",icon:"🔄",color:"#0d9488",inc:1},
+  income_etc:{name:"기타수입",icon:"📈",color:"#65a30d",inc:1},
+};
+function catList(type){return Object.entries(LED_CATS).filter(([k,c])=>type==="income"?(c.inc||k==="etc"):!c.inc);}
 
 /* ---------- Korean lunar calendar (1900-2100) ---------- */
 const lunarInfo=[0x04bd8,0x04ae0,0x0a570,0x054d5,0x0d260,0x0d950,0x16554,0x056a0,0x09ad0,0x055d2,
@@ -924,7 +955,27 @@ function openViewer(src){document.getElementById("vImg").src=src;openOverlay("vi
 const CARD_COLORS={"신한":"#0046ff","KB국민":"#ffbc00","국민":"#ffbc00","삼성":"#1428a0","현대":"#111111","롯데":"#da291c","하나":"#008485","우리":"#0067ac","NH농협":"#19a463","농협":"#19a463","비씨":"#e3002b","BC":"#e3002b","카카오뱅크":"#ffcd00","카카오":"#ffcd00","토스":"#0064ff","씨티":"#003b70","케이뱅크":"#ff5a00","IBK기업":"#0066b3","기업":"#0066b3","현금":"#16a34a"};
 function cardColor(name){if(!name)return "#94a3b8";for(const k in CARD_COLORS){if(name.indexOf(k)>=0)return CARD_COLORS[k];}let h=0;for(let i=0;i<name.length;i++)h=name.charCodeAt(i)+((h<<5)-h);return `hsl(${Math.abs(h)%360} 58% 48%)`;}
 function wonFmt(n){return (n||0).toLocaleString("ko-KR");}
-/* 카드 결제 문자 인식 → {card,amount,date,type,merchant,raw} */
+/* 가맹점/문자로 카테고리 자동 추정 */
+function guessCat(s){
+  s=s||"";
+  const rules=[
+    [/스타벅스|커피|투썸|이디야|메가커피|빽다방|공차|배스킨|던킨|파리바게|뚜레쥬르|베이커리|카페|폴바셋|할리스|컴포즈/i,"cafe"],
+    [/배달의민족|배민|요기요|쿠팡이츠|맥도날드|버거킹|롯데리아|맘스터치|김밥|식당|국밥|치킨|피자|분식|푸드|돈까스|곱창|족발|회|초밥|한식|중식|일식/i,"food"],
+    [/이마트|홈플러스|롯데마트|코스트코|GS25|CU|세븐일레븐|이마트24|편의점|마트|하나로|노브랜드/i,"mart"],
+    [/주유|엔크린|칼텍스|S-OIL|에스오일|버스|지하철|택시|카카오T|코레일|SRT|KTX|하이패스|톨게이트|주차|철도|고속/i,"transport"],
+    [/한국전력|도시가스|상수도|관리비|통신|SKT|KT|LGU|유플러스|넷플릭스|유튜브|디즈니|왓챠|티빙|구독|보험|렌탈|월세|전기/i,"living"],
+    [/쿠팡|11번가|G마켓|지마켓|옥션|무신사|올리브영|다이소|네이버페이|백화점|아울렛|ZARA|유니클로|에이블리|지그재그|마켓컬리/i,"shopping"],
+    [/병원|의원|약국|치과|한의원|클리닉|건강|헬스|필라테스|요가|피부과|정형외과/i,"health"],
+    [/영화|CGV|메가박스|롯데시네마|노래방|PC방|게임|스팀|볼링|당구|공연|전시|놀이공원|에버랜드|롯데월드/i,"culture"],
+    [/학원|교습|인강|서점|교보문고|영풍문고|알라딘|예스24|등록금|수강|과외/i,"education"],
+    [/예식|장례|축의|부의|화환|결혼|돌잔치/i,"social"],
+    [/항공|호텔|펜션|리조트|숙박|여행|에어비앤비|야놀자|여기어때/i,"travel"],
+    [/동물병원|펫|사료|애견|반려/i,"pet"],
+  ];
+  for(const[re,cat]of rules){if(re.test(s))return cat;}
+  return "";
+}
+/* 카드 결제 문자 인식 → {card,amount,date,type,merchant,cat,raw} */
 function parseCardSms(t){
   t=(t||"").trim();
   let card="";
@@ -954,7 +1005,8 @@ function parseCardSms(t){
   const parts=mch.split(/\s+/).filter(x=>x.length>=2&&!/^\d+$/.test(x));
   let merchant=parts.length?parts[parts.length-1]:mch;
   if(merchant.length>40)merchant=merchant.slice(0,40);
-  return {card,amount,date,type,merchant,raw:t};
+  const cat=type==="income"?(/취소|환불/.test(t)?"income_refund":"income_etc"):(guessCat(t)||"etc");
+  return {card,amount,date,type,merchant,cat,raw:t};
 }
 function renderLedger(){
   const now=new Date();const mP=`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
@@ -967,22 +1019,32 @@ function renderLedger(){
   document.getElementById("ledSumInc").textContent=wonFmt(inc);
   const cards=[...new Set(all.map(x=>x.card).filter(Boolean))];
   document.getElementById("ledCardList").innerHTML=cards.map(c=>`<option value="${esc(c)}">`).join("");
+  // 카테고리 필터 (실제 사용된 카테고리만)
+  const usedCats=[...new Set(all.map(x=>x.cat).filter(k=>k&&LED_CATS[k]))];
+  const catChips=[`<div class="led-chip ${ledCatFilter==='all'?'active':''}" data-c="all">전체</div>`]
+    .concat(usedCats.map(k=>{const c=LED_CATS[k];return `<div class="led-chip ${ledCatFilter===k?'active':''}" data-c="${k}"><span class="led-caticon">${c.icon}</span>${c.name}</div>`;}));
+  document.getElementById("ledCatFilter").innerHTML=catChips.join("");
+  document.getElementById("ledCatFilter").querySelectorAll(".led-chip").forEach(el=>el.onclick=()=>{ledCatFilter=el.dataset.c;renderLedger();});
+  // 카드 필터
   const chips=[`<div class="led-chip ${ledFilter==='all'?'active':''}" data-c="all">전체</div>`]
     .concat(cards.map(c=>`<div class="led-chip ${ledFilter===c?'active':''}" data-c="${esc(c)}"><span class="cdot" style="background:${cardColor(c)}"></span>${esc(c)}</div>`));
   document.getElementById("ledCardFilter").innerHTML=chips.join("");
   document.getElementById("ledCardFilter").querySelectorAll(".led-chip").forEach(el=>el.onclick=()=>{ledFilter=el.dataset.c;renderLedger();});
-  const rows=ledFilter==="all"?all:all.filter(x=>x.card===ledFilter);
+  let rows=all;
+  if(ledFilter!=="all")rows=rows.filter(x=>x.card===ledFilter);
+  if(ledCatFilter!=="all")rows=rows.filter(x=>(x.cat||"")===ledCatFilter);
   const el=document.getElementById("ledgerList");
   if(!rows.length){el.innerHTML=`<div class="empty"><span class="em">💳</span>내역이 없어요.<br>결제 문자를 붙여넣거나 + 로 추가하세요.</div>`;return;}
   let html="",lastDate="";
   rows.forEach(x=>{
     if(x.date!==lastDate){lastDate=x.date;html+=`<div class="led-daygrp">${fmtKDate(x.date)}</div>`;}
     const col=cardColor(x.card);const sign=x.type==="income"?"+":"-";
+    const cat=LED_CATS[x.cat];
     html+=`<div class="led-row" data-id="${x.id}">
-      <div class="led-bar" style="background:${col}"></div>
+      <div class="led-bar" style="background:${cat?cat.color:col}"></div>
       <div class="led-info">
-        <div class="led-mch">${esc(x.merchant||"(내용 없음)")}</div>
-        <div class="led-sub">${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
+        <div class="led-mch">${cat?cat.icon+" ":""}${esc(x.merchant||"(내용 없음)")}</div>
+        <div class="led-sub">${cat?`<span class="led-cattag" style="color:${cat.color}">${cat.name}</span>`:""}${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
       </div>
       <div class="led-amt ${x.type==='income'?'income':'expense'}">${sign}${wonFmt(+x.amount||0)}</div>
       <button class="led-del" data-id="${x.id}">✕</button>
@@ -992,11 +1054,25 @@ function renderLedger(){
   el.querySelectorAll(".led-del").forEach(b=>b.onclick=e=>{e.stopPropagation();delLedger(b.dataset.id);});
   el.querySelectorAll(".led-row").forEach(r=>r.onclick=e=>{if(e.target.closest(".led-del"))return;openLedgerEdit(r.dataset.id);});
 }
-function setLedType(t){curLedType=t;document.getElementById("ledTypeSeg").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));}
+function renderLedCatPick(){
+  const el=document.getElementById("ledCatPick");
+  el.innerHTML=catList(curLedType).map(([k,c])=>
+    `<div class="led-catopt ${curLedCat===k?'sel':''}" data-c="${k}" style="${curLedCat===k?`background:${c.color};`:""}"><span class="led-caticon">${c.icon}</span>${c.name}</div>`).join("");
+  el.querySelectorAll(".led-catopt").forEach(o=>o.onclick=()=>{curLedCat=o.dataset.c;renderLedCatPick();});
+}
+function setLedType(t){
+  curLedType=t;
+  document.getElementById("ledTypeSeg").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+  // 유형 바뀌면 호환되는 카테고리로 보정
+  const valid=catList(t).map(([k])=>k);
+  if(valid.indexOf(curLedCat)<0)curLedCat=t==="income"?"income_etc":"etc";
+  renderLedCatPick();
+}
 function openLedgerAdd(prefill){
   editLedId=null;
   document.getElementById("ledgerSheetTitle").textContent="내역 추가";
   const p=prefill||{};
+  curLedCat=p.cat||(p.type==="income"?"income_etc":"etc");
   setLedType(p.type||"expense");
   document.getElementById("ledAmt").value=p.amount||"";
   document.getElementById("ledDate").value=p.date||todayStr();
@@ -1009,6 +1085,7 @@ function openLedgerEdit(id){
   const x=(state.ledger||[]).find(e=>e.id===id);if(!x)return;
   editLedId=id;
   document.getElementById("ledgerSheetTitle").textContent="내역 수정";
+  curLedCat=x.cat||(x.type==="income"?"income_etc":"etc");
   setLedType(x.type||"expense");
   document.getElementById("ledAmt").value=x.amount||"";
   document.getElementById("ledDate").value=x.date||todayStr();
@@ -1024,11 +1101,12 @@ function saveLedger(){
   const card=document.getElementById("ledCard").value.trim();
   const merchant=document.getElementById("ledMch").value.trim();
   const memo=document.getElementById("ledMemo").value.trim();
+  const cat=curLedCat;
   if(editLedId){
     const x=state.ledger.find(e=>e.id===editLedId);
-    if(x)Object.assign(x,{amount,date,card,merchant,memo,type:curLedType});
+    if(x)Object.assign(x,{amount,date,card,merchant,memo,cat,type:curLedType});
   }else{
-    state.ledger.push({id:Date.now()+""+Math.floor(Math.random()*999),amount,date,card,merchant,memo,type:curLedType,createdAt:Date.now()});
+    state.ledger.push({id:Date.now()+""+Math.floor(Math.random()*999),amount,date,card,merchant,memo,cat,type:curLedType,createdAt:Date.now()});
   }
   save();closeOverlay("ledgerSheet");renderLedger();toast(editLedId?"수정했어요":"내역 추가 완료");
 }
@@ -1538,6 +1616,16 @@ function init(){
   document.getElementById("viewer").onclick=e=>{if(e.target.id==="viewer")closeOverlay("viewer");};
   // tap outside to close sheets
   document.querySelectorAll(".overlay").forEach(o=>o.onclick=e=>{if(e.target===o)closeOverlay(o);});
+  // iPhone 등 뒤로가기 버튼 없는 기기용 — 모든 시트에 닫기(✕) 버튼 주입
+  document.querySelectorAll(".overlay").forEach(o=>{
+    const sheet=o.querySelector(".sheet");
+    if(sheet&&!sheet.querySelector(".sheet-close")){
+      const b=document.createElement("button");
+      b.className="sheet-close";b.type="button";b.innerHTML="✕";b.setAttribute("aria-label","닫기");
+      b.onclick=()=>closeOverlay(o);
+      sheet.appendChild(b);
+    }
+  });
 }
 init();
 </script>
