@@ -535,6 +535,7 @@ const KEY="myPlanner.v1";
 let state={tasks:[],done:{},diary:{},ledger:[],notified:{}}; // diary: {"YYYY-MM-DD":{text,photos:[]}}; ledger:[{id,date,amount,card,merchant,memo,type,raw,createdAt}]; notified: {"taskId|date":ts}
 let viewY,viewM,selDate,editId=null,curRep="none",curCat="work",filter="all";
 let curTab="cal",editMemoId=null,curMemoPhotos=[],curMemoAudio=null,mediaRec=null,recChunks=[],recStream=null;
+let speechRec=null,curTranscript="";
 let curSubs=[];
 let curPhotos=[]; // photos being edited in diary sheet
 let editLedId=null,curLedType="expense",ledFilter="all",curLedCat="etc",ledCatFilter="all";
@@ -1218,7 +1219,8 @@ function renderMemoAudio(){
   const a=document.getElementById("memoAudioArea");
   const recording=mediaRec&&mediaRec.state==="recording";
   if(recording){
-    a.innerHTML=`<button class="rec-btn recording" id="recBtn"><span class="rec-dot"></span>녹음 중… 탭하면 정지</button>`;
+    const sttOn=!!(window.SpeechRecognition||window.webkitSpeechRecognition);
+    a.innerHTML=`<button class="rec-btn recording" id="recBtn"><span class="rec-dot"></span>녹음 중${sttOn?"·받아쓰는 중":""}… 탭하면 정지</button>`;
   }else if(curMemoAudio){
     a.innerHTML=`<div class="audio-player"><audio controls src="${curMemoAudio.data}"></audio><button class="rm" id="audioRm">✕</button></div>`;
     const rm=a.querySelector("#audioRm");if(rm)rm.onclick=()=>{curMemoAudio=null;renderMemoAudio();};
@@ -1238,9 +1240,61 @@ async function toggleRec(){
       const blob=new Blob(recChunks,{type:mediaRec.mimeType||"audio/webm"});
       const r=new FileReader();r.onload=()=>{curMemoAudio={id:null,data:r.result};renderMemoAudio();};r.readAsDataURL(blob);
       if(recStream)recStream.getTracks().forEach(t=>t.stop());
+      stopSpeech();
     };
+    startSpeech();
     mediaRec.start();renderMemoAudio();
   }catch(e){toast("마이크 권한이 필요해요");}
+}
+/* 녹음과 동시에 음성→텍스트 받아쓰기 (가능한 브라우저에서) */
+function startSpeech(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  curTranscript="";
+  if(!SR){speechRec=null;return;}
+  try{
+    speechRec=new SR();
+    speechRec.lang="ko-KR";speechRec.continuous=true;speechRec.interimResults=false;
+    speechRec.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)curTranscript+=e.results[i][0].transcript+" ";}};
+    speechRec.onerror=()=>{};
+    // continuous가 중간에 끊기면 녹음 중인 동안 자동 재시작
+    speechRec.onend=()=>{if(mediaRec&&mediaRec.state==="recording"){try{speechRec.start();}catch(e){}}};
+    speechRec.start();
+  }catch(e){speechRec=null;}
+}
+function stopSpeech(){
+  const sr=speechRec;speechRec=null;
+  if(sr){try{sr.onend=null;sr.stop();}catch(e){}}
+  // 마지막 결과가 들어올 시간을 주고 요약 적용
+  setTimeout(applyTranscriptSummary,700);
+}
+/* 받아쓴 텍스트 → 핵심 요약 + 키워드 → 메모 본문에 삽입 */
+function summarizeKo(text){
+  text=(text||"").replace(/\s+/g," ").trim();
+  if(!text)return null;
+  const sents=text.split(/(?<=[.!?。…])\s+|[\n]+/).map(s=>s.trim()).filter(s=>s.length>1);
+  const list=sents.length?sents:[text];
+  const stop=new Set("그리고 그래서 하지만 그런데 저는 제가 우리 이거 그거 저거 정도 그냥 너무 진짜 약간 이제 근데 그게 이게 같아요 같은 거예요 거야 합니다 했습니다 그러면 으로 에서 에게 한테 까지 부터 그럼 또는 또 더 좀".split(/\s+/));
+  const freq={};
+  (text.match(/[가-힣]{2,}|[A-Za-z]{3,}/g)||[]).forEach(w=>{if(!stop.has(w))freq[w]=(freq[w]||0)+1;});
+  const keywords=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,6).map(x=>x[0]);
+  const scored=list.map((s,i)=>{let sc=0;for(const k in freq){if(s.indexOf(k)>=0)sc+=freq[k];}return {s,sc:sc/Math.sqrt(s.length||1),i};});
+  const n=Math.min(3,Math.max(1,Math.round(list.length/3)));
+  const top=scored.slice().sort((a,b)=>b.sc-a.sc).slice(0,n).sort((a,b)=>a.i-b.i).map(x=>x.s);
+  return {summary:top,keywords,full:text};
+}
+function applyTranscriptSummary(){
+  const r=summarizeKo(curTranscript);
+  if(!r||!r.full){
+    if(!(window.SpeechRecognition||window.webkitSpeechRecognition))toast("이 브라우저는 음성 받아쓰기를 지원하지 않아요 (녹음은 저장됨)");
+    return;
+  }
+  const mt=document.getElementById("mText");
+  let block="📝 핵심 요약\n"+r.summary.map(s=>"· "+s).join("\n");
+  if(r.keywords.length)block+="\n🔑 "+r.keywords.join(", ");
+  block+="\n\n🎙 받아쓰기\n"+r.full;
+  mt.value=(mt.value.trim()?mt.value.trim()+"\n\n":"")+block;
+  curTranscript="";
+  toast("✨ 음성을 요약해서 메모에 넣었어요");
 }
 async function saveMemo(){
   if(mediaRec&&mediaRec.state==="recording"){toast("녹음을 먼저 정지하세요");return;}
