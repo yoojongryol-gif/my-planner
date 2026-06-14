@@ -247,6 +247,14 @@
   .led-del:active{color:var(--red)}
   .led-daygrp{font-size:12px;font-weight:700;color:var(--muted);margin:14px 2px 7px}
   .seg.cardseg{flex-wrap:wrap;height:auto;gap:6px}
+  /* 알림 배너 */
+  .remind-banner{position:fixed;top:calc(8px + var(--safe-top));left:50%;transform:translateX(-50%) translateY(-160%);width:calc(100% - 24px);max-width:480px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 36px rgba(0,0,0,.28);z-index:200;display:flex;align-items:center;gap:11px;padding:13px 14px;cursor:pointer;transition:transform .35s cubic-bezier(.2,.9,.3,1.3);opacity:0}
+  .remind-banner.show{transform:translateX(-50%) translateY(0);opacity:1}
+  .remind-banner .rb-bar{width:5px;align-self:stretch;border-radius:3px;flex:0 0 auto}
+  .remind-banner .rb-body{flex:1;min-width:0}
+  .remind-banner .rb-title{font-size:15px;font-weight:700;word-break:break-word}
+  .remind-banner .rb-sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .remind-banner .rb-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;flex:0 0 auto;padding:0 2px}
   .led-catgrid{display:flex;gap:7px;flex-wrap:wrap}
   .led-catopt{border:2px solid var(--line);border-radius:20px;padding:7px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:600;color:var(--text);background:var(--surface)}
   .led-catopt.sel{color:#fff;border-color:transparent}
@@ -373,6 +381,17 @@
     </div>
     <label class="fld">📍 장소</label>
     <input id="fLoc" placeholder="어디서? (선택)" autocomplete="off" maxlength="100">
+    <label class="fld">🔔 알림</label>
+    <select id="fRemind">
+      <option value="none">없음</option>
+      <option value="ontime">일정 시간에</option>
+      <option value="10m">10분 전</option>
+      <option value="30m">30분 전</option>
+      <option value="1h">1시간 전</option>
+      <option value="2h">2시간 전</option>
+      <option value="1d">1일 전 (같은 시각)</option>
+      <option value="1d9">1일 전 오전 9시</option>
+    </select>
     <label class="fld">반복</label>
     <div class="seg" id="repSeg">
       <button data-r="none" class="on">없음</button>
@@ -431,6 +450,10 @@
       <button class="save-btn" id="mConnect" style="margin-top:12px">구글 계정 연결</button>
       <p style="color:var(--muted);font-size:12px;margin-top:10px;line-height:1.6">클라이언트 ID가 없으면 함께 드린 <b>설정 가이드</b>를 따라 5분이면 만들 수 있어요.</p>
     </div>
+    <h3 style="margin-top:22px">🔔 알림</h3>
+    <div id="notifStatus" style="font-size:13px;color:var(--muted);background:var(--surface2);border-radius:11px;padding:11px;margin-bottom:10px"></div>
+    <div class="menu-item" id="mNotify"><span class="mi">🔔</span>일정 알림 켜기</div>
+    <p style="color:var(--muted);font-size:12px;margin:6px 2px 0;line-height:1.6">일정마다 알림 시점을 정할 수 있어요. <b>앱이 열려 있을 때</b> 알림이 와요. 아이폰은 <b>홈 화면에 추가</b>(공유→홈 화면에 추가) 후 그 앱에서 열어야 알림이 작동해요.</p>
     <h3 style="margin-top:22px">📦 데이터</h3>
     <div class="menu-item" id="mExport"><span class="mi">⬇️</span>데이터 백업(내보내기)</div>
     <div class="menu-item" id="mImport"><span class="mi">⬆️</span>데이터 복원(가져오기)</div>
@@ -509,7 +532,7 @@ const CATS={
   etc:{name:"기타",color:"var(--c-etc)",hex:"#06b6d4"},
 };
 const KEY="myPlanner.v1";
-let state={tasks:[],done:{},diary:{},ledger:[]}; // diary: {"YYYY-MM-DD":{text,photos:[]}}; ledger:[{id,date,amount,card,merchant,memo,type,raw,createdAt}]
+let state={tasks:[],done:{},diary:{},ledger:[],notified:{}}; // diary: {"YYYY-MM-DD":{text,photos:[]}}; ledger:[{id,date,amount,card,merchant,memo,type,raw,createdAt}]; notified: {"taskId|date":ts}
 let viewY,viewM,selDate,editId=null,curRep="none",curCat="work",filter="all";
 let curTab="cal",editMemoId=null,curMemoPhotos=[],curMemoAudio=null,mediaRec=null,recChunks=[],recStream=null;
 let curSubs=[];
@@ -611,7 +634,7 @@ async function migratePhotos(){
 }
 
 /* ---------- storage ---------- */
-function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){state=d;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];}}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){state=d;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.notified=state.notified||{};}}catch(e){}}
 function save(){localStorage.setItem(KEY,JSON.stringify(state));}
 
 /* ---------- overlay open/close + 모바일 뒤로가기 ---------- */
@@ -1260,6 +1283,7 @@ function openAdd(){
   document.getElementById("fTime").value="";
   document.getElementById("fEndTime").value="";
   document.getElementById("fLoc").value="";
+  document.getElementById("fRemind").value="none";
   document.getElementById("fPrio").checked=false;
   curSubs=[];renderSubsEdit();
   setRep("none");renderCatPick();
@@ -1274,6 +1298,7 @@ function openEdit(t){
   document.getElementById("fTime").value=t.time||"";
   document.getElementById("fEndTime").value=t.endTime||"";
   document.getElementById("fLoc").value=t.loc||"";
+  document.getElementById("fRemind").value=t.remind||"none";
   document.getElementById("fPrio").checked=!!t.prio;
   curSubs=(t.subs||[]).map(s=>({...s}));renderSubsEdit();
   setRep(curRep);renderCatPick();
@@ -1296,6 +1321,94 @@ function addSub(){
   curSubs.push({id:Date.now()+""+Math.floor(Math.random()*999),text:t,done:false});
   inp.value="";renderSubsEdit();inp.focus();
 }
+/* ---------- 일정 알림 ---------- */
+function ensureNotifyPermission(){
+  if(!("Notification"in window)){toast("이 브라우저는 알림을 지원하지 않아요");return Promise.resolve(false);}
+  if(Notification.permission==="granted")return Promise.resolve(true);
+  if(Notification.permission==="denied"){toast("알림이 차단돼 있어요. 브라우저 설정에서 허용해주세요");return Promise.resolve(false);}
+  return Notification.requestPermission().then(p=>{
+    if(p==="granted")toast("🔔 알림이 켜졌어요");
+    else toast("알림 권한이 필요해요");
+    return p==="granted";
+  });
+}
+/* 일정 t가 dateStr에 발생할 때 알림 발사 시각(Date) 또는 null */
+function remindAt(t,dateStr){
+  const r=t.remind;
+  if(!r||r==="none")return null;
+  if(t.time){
+    const start=new Date(dateStr+"T"+t.time+":00");
+    const off={ontime:0,"10m":10,"30m":30,"1h":60,"2h":120,"1d":1440}[r];
+    if(off!=null)return new Date(start.getTime()-off*60000);
+    if(r==="1d9"){const d=parseYmd(dateStr);d.setDate(d.getDate()-1);d.setHours(9,0,0,0);return d;}
+  }else{
+    // 시간 없는(종일) 일정
+    const d=parseYmd(dateStr);
+    if(r==="1d"||r==="1d9")d.setDate(d.getDate()-1);
+    d.setHours(9,0,0,0);return d;
+  }
+  return null;
+}
+function fireNotification(t,dateStr){
+  const cat=CATS[t.cat]||CATS.etc;
+  const when=t.time?fmtTime(t.time)+(t.endTime?"~"+fmtTime(t.endTime):""):"종일";
+  const body=`${when}${t.loc?" · 📍"+t.loc:""}`;
+  try{
+    if("Notification"in window&&Notification.permission==="granted"){
+      const n=new Notification((t.prio?"⭐ ":"🔔 ")+t.title,{body,tag:t.id+"|"+dateStr,icon:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>"});
+      n.onclick=()=>{window.focus();selDate=dateStr;switchTab("cal");renderAll();n.close();};
+    }
+  }catch(e){}
+  if(navigator.vibrate)try{navigator.vibrate([200,100,200]);}catch(e){}
+  showReminderBanner(t,dateStr,when);
+}
+function showReminderBanner(t,dateStr,when){
+  let bar=document.getElementById("remindBanner");
+  if(!bar){bar=document.createElement("div");bar.id="remindBanner";bar.className="remind-banner";document.body.appendChild(bar);}
+  const cat=CATS[t.cat]||CATS.etc;
+  bar.innerHTML=`<div class="rb-bar" style="background:${cat.hex}"></div>
+    <div class="rb-body"><div class="rb-title">🔔 ${esc(t.title)}</div><div class="rb-sub">${esc(when)}${t.loc?" · 📍"+esc(t.loc):""}</div></div>
+    <button class="rb-close">✕</button>`;
+  bar.classList.add("show");
+  bar.querySelector(".rb-close").onclick=()=>bar.classList.remove("show");
+  bar.onclick=e=>{if(e.target.closest(".rb-close"))return;selDate=dateStr;switchTab("cal");renderAll();bar.classList.remove("show");};
+  clearTimeout(bar._t);bar._t=setTimeout(()=>bar.classList.remove("show"),12000);
+}
+function checkReminders(){
+  if(!state.tasks||!state.tasks.length)return;
+  state.notified=state.notified||{};
+  const now=Date.now();
+  const days=[todayStr()];
+  const nd=new Date();nd.setDate(nd.getDate()+1);days.push(ymd(nd));
+  const pd=new Date();pd.setDate(pd.getDate()-1);days.push(ymd(pd)); // 전날 알림(1일 전) 포함
+  let changed=false;
+  for(const ds of days){
+    for(const t of tasksOn(ds)){
+      if(!t.remind||t.remind==="none")continue;
+      const at=remindAt(t,ds);if(!at)continue;
+      const key=t.id+"|"+ds;
+      if(state.notified[key])continue;
+      const diff=now-at.getTime();
+      // 발사 시각이 지난 10분 이내면 알림(앱이 잠깐 닫혔다 열려도 놓치지 않게)
+      if(diff>=0&&diff<10*60000){
+        fireNotification(t,ds);state.notified[key]=now;changed=true;
+      }
+    }
+  }
+  // 오래된 발사기록 정리(3일 지난 것)
+  for(const k in state.notified){if(now-state.notified[k]>3*86400000)delete state.notified[k];}
+  if(changed)save();
+}
+/* 앱 켤 때 오늘 임박/중요 일정 요약 */
+function reminderStartupSummary(){
+  const ds=todayStr();
+  const items=tasksOn(ds).filter(t=>!isDone(t,ds));
+  const imp=items.filter(t=>t.prio);
+  if(imp.length){
+    setTimeout(()=>toast(`⭐ 오늘 중요 일정 ${imp.length}건: ${imp.slice(0,2).map(t=>t.title).join(", ")}${imp.length>2?" 외":""}`),900);
+  }
+}
+
 /* 자연어/공문 빠른 입력 파서.
    짧은 입력("6/15 강남역에서 오후 3시 회의")부터
    여러 줄 공문(대회명:/일시:/장소: 레이블, "2026. 6. 20.", "09:00~19:00")까지 인식.
@@ -1394,14 +1507,19 @@ function saveTask(){
   if(time&&endTime&&endTime<=time){toast("종료 시간이 시작 시간보다 빨라요");return;}
   if(!time&&endTime){toast("시작 시간을 먼저 선택하세요");return;}
   const loc=document.getElementById("fLoc").value.trim();
+  const remind=document.getElementById("fRemind").value;
   const prio=document.getElementById("fPrio").checked;
   if(editId){
     const t=state.tasks.find(x=>x.id===editId);
-    Object.assign(t,{title,date,time,endTime,loc,prio,cat:curCat,rep:curRep,subs:curSubs.map(s=>({...s})),gsync:"pending"});
+    // 알림 설정이 바뀌면 이 일정의 발사기록 초기화(다시 알리도록)
+    if(t.remind!==remind&&state.notified){Object.keys(state.notified).forEach(k=>{if(k.indexOf(t.id+"|")===0)delete state.notified[k];});}
+    Object.assign(t,{title,date,time,endTime,loc,remind,prio,cat:curCat,rep:curRep,subs:curSubs.map(s=>({...s})),gsync:"pending"});
   }else{
-    state.tasks.push({id:Date.now()+""+Math.floor(Math.random()*999),title,date,time,endTime,loc,prio,cat:curCat,rep:curRep,subs:curSubs.map(s=>({...s})),gsync:"pending"});
+    state.tasks.push({id:Date.now()+""+Math.floor(Math.random()*999),title,date,time,endTime,loc,remind,prio,cat:curCat,rep:curRep,subs:curSubs.map(s=>({...s})),gsync:"pending"});
   }
   save();closeSheet();selDate=date;renderAll();toast(editId?"수정했어요":"추가했어요");scheduleSync();
+  if(remind&&remind!=="none")ensureNotifyPermission();
+  setTimeout(checkReminders,400);
 }
 
 /* ---------- menu / data ---------- */
@@ -1652,7 +1770,7 @@ function init(){
   };
   document.getElementById("mReset").onclick=()=>{
     if(confirm("정말 모든 데이터를 삭제할까요? 복구할 수 없습니다."))
-      {const keepDel=state.gdel||[];state={tasks:[],done:{},diary:{},memos:[],monthPlan:{},weekPlan:{},ledger:[],gdel:keepDel,gSyncToken:null,gLast:0};save();renderAll();renderMemos();toast("초기화했어요");closeMenu();}
+      {const keepDel=state.gdel||[];state={tasks:[],done:{},diary:{},memos:[],monthPlan:{},weekPlan:{},ledger:[],notified:{},gdel:keepDel,gSyncToken:null,gLast:0};save();renderAll();renderMemos();toast("초기화했어요");closeMenu();}
   };
   // Google sync wiring
   gLoadCfg();
@@ -1664,6 +1782,22 @@ function init(){
   window.addEventListener("online",()=>{if(gIsConnected())syncNow(true);});
   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&gIsConnected())syncNow(true);});
   if(gIsConnected())setTimeout(()=>syncNow(true),800);
+  // 알림 엔진
+  function renderNotifUI(){
+    const el=document.getElementById("notifStatus");if(!el)return;
+    if(!("Notification"in window)){el.textContent="이 브라우저는 알림을 지원하지 않아요";return;}
+    const p=Notification.permission;
+    el.innerHTML=p==="granted"?"✅ <b>알림 켜짐</b> — 일정에 알림을 설정하면 제때 알려드려요"
+      :p==="denied"?"⚪ 차단됨 — 브라우저/홈화면 설정에서 알림을 허용해주세요"
+      :"⚪ 꺼짐 — 아래 버튼으로 켜주세요";
+  }
+  document.getElementById("mNotify").onclick=()=>ensureNotifyPermission().then(renderNotifUI);
+  renderNotifUI();
+  checkReminders();
+  reminderStartupSummary();
+  setInterval(checkReminders,30000);
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkReminders();});
+  window.addEventListener("focus",checkReminders);
   document.getElementById("dSave").onclick=saveDiary;
   document.getElementById("dDelete").onclick=deleteDiary;
   document.getElementById("photoInput").onchange=e=>{if(e.target.files.length)addPhotos(e.target.files);e.target.value="";};
