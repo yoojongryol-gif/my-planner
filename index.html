@@ -442,6 +442,7 @@
     <div id="gStatus" style="font-size:13px;color:var(--muted);background:var(--surface2);border-radius:11px;padding:11px;margin-bottom:10px">상태 확인 중…</div>
     <div id="gConnected" style="display:none">
       <div class="menu-item" id="mSyncNow"><span class="mi">🔄</span>지금 동기화</div>
+      <div class="menu-item" id="mReauth"><span class="mi">🔐</span>백업 권한 추가(구글 재연결)</div>
       <div class="menu-item" id="mDisconnect" style="color:var(--amber)"><span class="mi">🔌</span>구글 연결 해제</div>
     </div>
     <div id="gDisconnected">
@@ -455,8 +456,10 @@
     <div class="menu-item" id="mNotify"><span class="mi">🔔</span>일정 알림 켜기</div>
     <p style="color:var(--muted);font-size:12px;margin:6px 2px 0;line-height:1.6">일정마다 알림 시점을 정할 수 있어요. <b>앱이 열려 있을 때</b> 알림이 와요. 아이폰은 <b>홈 화면에 추가</b>(공유→홈 화면에 추가) 후 그 앱에서 열어야 알림이 작동해요.</p>
     <h3 style="margin-top:22px">📦 데이터</h3>
-    <div class="menu-item" id="mExport"><span class="mi">⬇️</span>데이터 백업(내보내기)</div>
-    <div class="menu-item" id="mImport"><span class="mi">⬆️</span>데이터 복원(가져오기)</div>
+    <div class="menu-item" id="mBackupNow"><span class="mi">☁️</span>지금 구글에 백업</div>
+    <div class="menu-item" id="mRestore"><span class="mi">♻️</span>구글에서 복원</div>
+    <div class="menu-item" id="mExport"><span class="mi">⬇️</span>데이터 백업(파일로 내보내기)</div>
+    <div class="menu-item" id="mImport"><span class="mi">⬆️</span>데이터 복원(파일 가져오기)</div>
     <div class="menu-item" id="mClearDone"><span class="mi">🧹</span>완료된 할일 정리</div>
     <div class="menu-item" id="mReset" style="color:var(--red)"><span class="mi">🗑️</span>전체 초기화</div>
     <input type="file" id="importFile" accept="application/json" style="display:none">
@@ -636,7 +639,7 @@ async function migratePhotos(){
 
 /* ---------- storage ---------- */
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){state=d;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.notified=state.notified||{};}}catch(e){}}
-function save(){localStorage.setItem(KEY,JSON.stringify(state));}
+function save(){localStorage.setItem(KEY,JSON.stringify(state));if(typeof scheduleBackup==="function")scheduleBackup();}
 
 /* ---------- overlay open/close + 모바일 뒤로가기 ---------- */
 let _popSuppress=false;
@@ -1623,7 +1626,7 @@ function gInitClient(){
   if(!window.google||!google.accounts||!google.accounts.oauth2||!G.clientId)return false;
   G.client=google.accounts.oauth2.initTokenClient({
     client_id:G.clientId,
-    scope:"https://www.googleapis.com/auth/calendar.events",
+    scope:"https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/drive.appdata",
     callback:r=>{if(r&&r.access_token){gSaveToken({access_token:r.access_token,expiry:Date.now()+(r.expires_in||3600)*1000});if(G._resolve){G._resolve();G._resolve=null;G._reject=null;}}},
     error_callback:e=>{if(G._reject){G._reject(e);G._reject=null;G._resolve=null;}}
   });
@@ -1730,6 +1733,67 @@ async function syncNow(silent){
 }
 function scheduleSync(){if(!gIsConnected())return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow(true),1500);}
 
+/* ===== 구글 드라이브 자동 백업 (앱 전용 폴더 appDataFolder) =====
+   다이어리·메모·가계부·일정·계획 전부 + 사진까지 클라우드 백업.
+   기기 데이터가 비워져도 '구글에서 복원'으로 되살릴 수 있음. */
+const BACKUP_NAME="planner-backup.json";
+let backupTimer=null,gBackingUp=false;
+function scheduleBackup(){if(!gIsConnected())return;clearTimeout(backupTimer);backupTimer=setTimeout(()=>gDriveBackup(true),8000);}
+async function gDriveFindBackup(){
+  const q=encodeURIComponent("name='"+BACKUP_NAME+"'");
+  const r=await gFetch("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q="+q+"&fields=files(id,modifiedTime)");
+  if(!r.ok)return {err:r.status};
+  const d=await r.json();
+  return {id:(d.files&&d.files[0]&&d.files[0].id)||null};
+}
+async function gDriveBackup(silent){
+  if(!gIsConnected()||gBackingUp)return false;
+  if(!navigator.onLine)return false;
+  gBackingUp=true;
+  try{
+    let photos={};try{photos=await idbAll();}catch(e){}
+    // 사진 총량이 너무 크면(>9MB) 사진 제외 — 다이어리/메모 '텍스트'는 무조건 보존
+    let size=0;for(const k in photos)size+=(photos[k]||"").length;
+    const payload={v:1,savedAt:Date.now(),state,photos:size>9000000?{}:photos,photosOmitted:size>9000000};
+    const content=JSON.stringify(payload);
+    const found=await gDriveFindBackup();
+    if(found.err===403){if(!silent)toast("백업 권한이 없어요 — 설정에서 '구글 재연결'을 해주세요");gBackingUp=false;return false;}
+    let fileId=found.id;
+    if(!fileId){
+      const cr=await gFetch("https://www.googleapis.com/drive/v3/files",{method:"POST",body:JSON.stringify({name:BACKUP_NAME,parents:["appDataFolder"]})});
+      if(!cr.ok){if(!silent)toast("백업 파일 생성 실패");gBackingUp=false;return false;}
+      fileId=(await cr.json()).id;
+    }
+    const up=await gFetch("https://www.googleapis.com/upload/drive/v3/files/"+fileId+"?uploadType=media",{method:"PATCH",body:content});
+    if(up.ok){
+      localStorage.setItem("g.backupAt",String(Date.now()));
+      renderGoogleUI();
+      if(!silent)toast("☁️ 구글에 백업 완료"+(payload.photosOmitted?" (사진 제외·용량 초과)":""));
+      gBackingUp=false;return true;
+    }
+    if(!silent)toast("백업 업로드 실패");
+  }catch(e){if(!silent)toast("백업 실패 — 잠시 후 다시");}
+  gBackingUp=false;return false;
+}
+async function gDriveRestore(){
+  if(!gIsConnected()){toast("먼저 구글 계정을 연결하세요");return;}
+  try{
+    const found=await gDriveFindBackup();
+    if(found.err===403){toast("복원 권한이 없어요 — '구글 재연결'을 해주세요");return;}
+    if(!found.id){toast("구글에 백업된 데이터가 없어요");return;}
+    const r=await gFetch("https://www.googleapis.com/drive/v3/files/"+found.id+"?alt=media");
+    if(!r.ok){toast("백업을 불러오지 못했어요");return;}
+    const data=await r.json();
+    const st=data.state||data;
+    const cnt=(st.tasks||[]).length, dcnt=Object.keys(st.diary||{}).length, mcnt=(st.memos||[]).length, lcnt=(st.ledger||[]).length;
+    if(!confirm(`구글 백업을 불러옵니다.\n일정 ${cnt} · 다이어리 ${dcnt} · 메모 ${mcnt} · 가계부 ${lcnt}건\n\n지금 이 기기의 내용은 백업 내용으로 덮어써집니다. 진행할까요?`))return;
+    const photos=data.photos||{};
+    for(const id in photos){try{await idbPut(id,photos[id]);}catch(e){}}
+    state=st;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.notified=state.notified||{};
+    save();renderAll();renderMemos();toast("✅ 구글 백업에서 복원했어요");closeMenu();
+  }catch(e){toast("복원 중 오류가 났어요");}
+}
+
 async function gConnect(){
   const id=document.getElementById("gClientId").value.trim();
   if(!id){toast("클라이언트 ID를 입력하세요");return;}
@@ -1753,7 +1817,9 @@ function renderGoogleUI(){
   const st=document.getElementById("gStatus");
   if(conn){
     const last=state.gLast?new Date(state.gLast):null;
-    st.innerHTML=`✅ <b>연결됨</b>${last?" · 마지막 동기화 "+pad2(last.getHours())+":"+pad2(last.getMinutes()):""}<br><span style="font-size:11px">일정이 구글 캘린더와 자동 동기화됩니다.</span>`;
+    const bAt=+(localStorage.getItem("g.backupAt")||0);
+    const bTxt=bAt?`☁️ 자동 백업됨 · ${pad2(new Date(bAt).getHours())}:${pad2(new Date(bAt).getMinutes())}`:"☁️ 자동 백업 대기 중 (데이터 변경 시 백업)";
+    st.innerHTML=`✅ <b>연결됨</b>${last?" · 동기화 "+pad2(last.getHours())+":"+pad2(last.getMinutes()):""}<br><span style="font-size:11px">일정은 구글 캘린더와 동기화, 다이어리·메모·가계부는 구글 드라이브에 자동 백업돼요.<br>${bTxt}</span>`;
   }else{
     document.getElementById("gClientId").value=G.clientId||"";
     st.innerHTML=`⚪ <b>연결 안 됨</b><br><span style="font-size:11px">연결하면 폰·PC·구글 캘린더 앱에서 같은 일정을 볼 수 있어요.</span>`;
@@ -1831,6 +1897,13 @@ function init(){
   document.getElementById("mConnect").onclick=gConnect;
   document.getElementById("mDisconnect").onclick=gDisconnect;
   document.getElementById("mSyncNow").onclick=()=>syncNow(false);
+  document.getElementById("mBackupNow").onclick=()=>{if(!gIsConnected()){toast("먼저 구글 계정을 연결하세요");return;}gDriveBackup(false);};
+  document.getElementById("mRestore").onclick=gDriveRestore;
+  document.getElementById("mReauth").onclick=async()=>{
+    const old=G.token;G.token=null;  // 강제 재동의(유효 토큰이면 동의창이 안 떠서 비움)
+    try{await gGetToken(true);toast("백업 권한을 추가했어요");renderGoogleUI();gDriveBackup(false);}
+    catch(e){G.token=old;toast("재연결이 취소됐어요");}
+  };
   document.getElementById("syncBtn").onclick=()=>{if(gIsConnected())syncNow(false);else openOverlay("menuSheet");};
   renderGoogleUI();updateSyncUI("idle");
   window.addEventListener("online",()=>{if(gIsConnected())syncNow(true);});
