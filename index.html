@@ -464,9 +464,10 @@
     <div class="menu-item" id="mReset" style="color:var(--red)"><span class="mi">🗑️</span>전체 초기화</div>
     <input type="file" id="importFile" accept="application/json" style="display:none">
     <p style="color:var(--muted);font-size:12px;margin-top:18px;line-height:1.6">
-      💡 데이터는 이 기기에 안전하게 저장됩니다.<br>
+      💡 데이터는 이 기기 + 구글 드라이브에 백업됩니다.<br>
       📱 모바일에서 <b>홈 화면에 추가</b>하면 앱처럼 쓸 수 있어요.
     </p>
+    <p style="color:var(--muted);font-size:11px;margin-top:8px;text-align:center" id="appVer"></p>
   </div>
 </div>
 
@@ -535,6 +536,7 @@ const CATS={
   etc:{name:"기타",color:"var(--c-etc)",hex:"#06b6d4"},
 };
 const KEY="myPlanner.v1";
+const APP_VER="2026.06.15-백업진단";
 let state={tasks:[],done:{},diary:{},ledger:[],notified:{}}; // diary: {"YYYY-MM-DD":{text,photos:[]}}; ledger:[{id,date,amount,card,merchant,memo,type,raw,createdAt}]; notified: {"taskId|date":ts}
 let viewY,viewM,selDate,editId=null,curRep="none",curCat="work",filter="all";
 let curTab="cal",editMemoId=null,curMemoPhotos=[],curMemoAudio=null,mediaRec=null,recChunks=[],recStream=null;
@@ -1627,7 +1629,7 @@ function gInitClient(){
   G.client=google.accounts.oauth2.initTokenClient({
     client_id:G.clientId,
     scope:"https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/drive.appdata",
-    callback:r=>{if(r&&r.access_token){gSaveToken({access_token:r.access_token,expiry:Date.now()+(r.expires_in||3600)*1000});if(G._resolve){G._resolve();G._resolve=null;G._reject=null;}}},
+    callback:r=>{if(r&&r.access_token){gSaveToken({access_token:r.access_token,expiry:Date.now()+(r.expires_in||3600)*1000,scope:r.scope||""});renderGoogleUI();if(G._resolve){G._resolve();G._resolve=null;G._reject=null;}}},
     error_callback:e=>{if(G._reject){G._reject(e);G._reject=null;G._resolve=null;}}
   });
   return true;
@@ -1818,8 +1820,10 @@ function renderGoogleUI(){
   if(conn){
     const last=state.gLast?new Date(state.gLast):null;
     const bAt=+(localStorage.getItem("g.backupAt")||0);
-    const bTxt=bAt?`☁️ 자동 백업됨 · ${pad2(new Date(bAt).getHours())}:${pad2(new Date(bAt).getMinutes())}`:"☁️ 자동 백업 대기 중 (데이터 변경 시 백업)";
-    st.innerHTML=`✅ <b>연결됨</b>${last?" · 동기화 "+pad2(last.getHours())+":"+pad2(last.getMinutes()):""}<br><span style="font-size:11px">일정은 구글 캘린더와 동기화, 다이어리·메모·가계부는 구글 드라이브에 자동 백업돼요.<br>${bTxt}</span>`;
+    const bTxt=bAt?`☁️ 자동 백업됨 · ${pad2(new Date(bAt).getHours())}:${pad2(new Date(bAt).getMinutes())}`:"☁️ 자동 백업 대기 중";
+    const hasDrive=((G.token&&G.token.scope)||"").indexOf("drive.appdata")>=0;
+    const perm=hasDrive?"드라이브(백업) 권한 ✅":"드라이브(백업) 권한 ❌ — 아래 '백업 권한 추가'를 눌러주세요";
+    st.innerHTML=`✅ <b>연결됨</b>${last?" · 동기화 "+pad2(last.getHours())+":"+pad2(last.getMinutes()):""}<br><span style="font-size:11px">${perm}<br>${hasDrive?bTxt:""}</span>`;
   }else{
     document.getElementById("gClientId").value=G.clientId||"";
     st.innerHTML=`⚪ <b>연결 안 됨</b><br><span style="font-size:11px">연결하면 폰·PC·구글 캘린더 앱에서 같은 일정을 볼 수 있어요.</span>`;
@@ -1899,6 +1903,7 @@ function init(){
   document.getElementById("mSyncNow").onclick=()=>syncNow(false);
   document.getElementById("mBackupNow").onclick=()=>{if(!gIsConnected()){toast("먼저 구글 계정을 연결하세요");return;}gDriveBackup(false);};
   document.getElementById("mRestore").onclick=gDriveRestore;
+  {const av=document.getElementById("appVer");if(av)av.textContent="버전 "+APP_VER;}
   document.getElementById("mReauth").onclick=async()=>{
     const old=G.token;G.token=null;  // 강제 재동의(유효 토큰이면 동의창이 안 떠서 비움)
     try{await gGetToken(true);toast("백업 권한을 추가했어요");renderGoogleUI();gDriveBackup(false);}
