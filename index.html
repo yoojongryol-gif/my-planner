@@ -669,8 +669,9 @@ function ymd(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate
 function parseYmd(s){const[y,m,dd]=s.split("-").map(Number);return new Date(y,m-1,dd);}
 function todayStr(){return ymd(new Date());}
 function fmtKDate(s){const d=parseYmd(s);const w=["일","월","화","수","목","금","토"][d.getDay()];return `${d.getMonth()+1}월 ${d.getDate()}일 (${w})`;}
-function hourLabel(h){const ap=h<12?"오전":"오후";let hh=h%12;if(hh===0)hh=12;return `${ap} ${hh}시`;}
-function fmtTime(t){if(!t)return"";const h=parseInt(t.split(":")[0],10);return hourLabel(h);}
+function timeLabel(h,m){const ap=h<12?"오전":"오후";let hh=h%12;if(hh===0)hh=12;return `${ap} ${hh}시${m?" "+m+"분":""}`;}
+function hourLabel(h){return timeLabel(h,0);}
+function fmtTime(t){if(!t)return"";const p=t.split(":");return timeLabel(parseInt(p[0],10),parseInt(p[1]||"0",10));}
 
 /* recurring: does a task occur on date str? */
 function occursOn(t,dateStr){
@@ -1493,12 +1494,14 @@ function parseSmart(text){
   }
   // ── 시간: HH:MM / N시 / 오후 N시, 범위(~)면 시작·종료 ──
   function findTimes(s){
-    const out=[];const re=/(오전|오후|저녁|아침|밤|새벽)?\s*(\d{1,2})\s*(?::\s*(\d{2})|시(\s*반)?)/g;let m;
+    const out=[];const re=/(오전|오후|저녁|아침|밤|새벽)?\s*(\d{1,2})\s*(?::\s*(\d{2})|시(?:\s*(\d{1,2})\s*분|\s*(반))?)/g;let m;
     while((m=re.exec(s))&&out.length<2){
       let h=+m[2];const ap=m[1];
       if((ap==="오후"||ap==="저녁"||ap==="밤")&&h<12)h+=12;
       if((ap==="오전"||ap==="아침"||ap==="새벽")&&h===12)h=0;
-      if(h>=0&&h<=23)out.push(pad(h)+":00");
+      let mm=m[3]?+m[3]:m[4]?+m[4]:m[5]?30:0;
+      mm=Math.round(mm/30)*30;if(mm>=60){h+=1;mm=0;}  // 30분 단위로 스냅
+      if(h>=0&&h<=23)out.push(pad(h)+":"+pad(mm));
     }
     return out;
   }
@@ -1843,7 +1846,7 @@ function init(){
   migratePhotos().then(()=>renderDiary());   // 기존 base64 사진을 IndexedDB로 1회 이전 후 갱신
   // populate hour dropdown (1-hour units, no minutes)
   let topt='<option value="">선택 안함</option>';
-  for(let h=0;h<24;h++)topt+=`<option value="${pad(h)}:00">${hourLabel(h)}</option>`;
+  for(let h=0;h<24;h++)for(const m of [0,30])topt+=`<option value="${pad(h)}:${pad(m)}">${timeLabel(h,m)}</option>`;
   document.getElementById("fTime").innerHTML=topt;
   document.getElementById("fEndTime").innerHTML=topt;
   const now=new Date();viewY=now.getFullYear();viewM=now.getMonth();selDate=todayStr();
