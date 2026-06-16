@@ -641,7 +641,7 @@ async function migratePhotos(){
 
 /* ---------- storage ---------- */
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){state=d;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.notified=state.notified||{};}}catch(e){}}
-function save(){localStorage.setItem(KEY,JSON.stringify(state));if(typeof scheduleBackup==="function")scheduleBackup();}
+function save(){state._savedAt=Date.now();localStorage.setItem(KEY,JSON.stringify(state));if(typeof scheduleBackup==="function")scheduleBackup();}
 
 /* ---------- overlay open/close + 모바일 뒤로가기 ---------- */
 let _popSuppress=false;
@@ -1799,6 +1799,47 @@ async function gDriveRestore(){
   }catch(e){toast("복원 중 오류가 났어요");}
 }
 
+/* ===== 기기 간 자동 동기화 (무손실 병합 — 가계부/메모/다이어리/계획) =====
+   일정(tasks)은 캘린더 동기화가 따로 처리하므로 여기서 건드리지 않음. */
+let gSyncing=false;
+function _mergeById(a,b){
+  a=a||[];b=b||[];const m={};
+  for(const x of a)if(x&&x.id)m[x.id]=x;
+  for(const x of b){if(!x||!x.id)continue;const e=m[x.id];if(!e||((x.updatedAt||x.createdAt||0)>(e.updatedAt||e.createdAt||0)))m[x.id]=x;}
+  return Object.values(m);
+}
+function mergeRemote(remote){
+  const r=remote||{};
+  state.ledger=_mergeById(state.ledger,r.ledger);                       // 가계부: id 합집합, 최신 우선
+  state.memos=_mergeById(state.memos,r.memos);                          // 메모: id 합집합
+  state.diary=Object.assign({},r.diary||{},state.diary||{});            // 다이어리: 날짜키 합집합(현 기기 우선)
+  state.monthPlan=Object.assign({},r.monthPlan||{},state.monthPlan||{});
+  state.weekPlan=Object.assign({},r.weekPlan||{},state.weekPlan||{});
+  state.done=Object.assign({},r.done||{},state.done||{});
+  state.notified=Object.assign({},r.notified||{},state.notified||{});
+}
+async function gAutoSync(){
+  if(!gIsConnected()||gSyncing||!navigator.onLine)return;
+  gSyncing=true;
+  try{
+    const found=await gDriveFindBackup();
+    if(found.id){
+      const r=await gFetch("https://www.googleapis.com/drive/v3/files/"+found.id+"?alt=media");
+      if(r.ok){
+        const data=await r.json();const remote=data.state||data;
+        const before=(state.ledger||[]).length+"/"+(state.memos||[]).length+"/"+Object.keys(state.diary||{}).length;
+        const photos=data.photos||{};
+        for(const id in photos){try{const ex=await idbGet(id);if(!ex)await idbPut(id,photos[id]);}catch(e){}}
+        mergeRemote(remote);
+        const after=(state.ledger||[]).length+"/"+(state.memos||[]).length+"/"+Object.keys(state.diary||{}).length;
+        save();renderAll();if(typeof renderMemos==="function")renderMemos();
+        if(before!==after)toast("☁️ 동기화됨");
+      }
+    }
+  }catch(e){}
+  gSyncing=false;
+}
+
 async function gConnect(){
   const id=document.getElementById("gClientId").value.trim();
   if(!id){toast("클라이언트 ID를 입력하세요");return;}
@@ -1914,9 +1955,10 @@ function init(){
   };
   document.getElementById("syncBtn").onclick=()=>{if(gIsConnected())syncNow(false);else openOverlay("menuSheet");};
   renderGoogleUI();updateSyncUI("idle");
-  window.addEventListener("online",()=>{if(gIsConnected())syncNow(true);});
-  document.addEventListener("visibilitychange",()=>{if(!document.hidden&&gIsConnected())syncNow(true);});
-  if(gIsConnected())setTimeout(()=>syncNow(true),800);
+  window.addEventListener("online",()=>{if(gIsConnected()){syncNow(true);gAutoSync();}});
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden&&gIsConnected()){syncNow(true);gAutoSync();}});
+  if(gIsConnected()){setTimeout(()=>syncNow(true),800);setTimeout(gAutoSync,1200);}
+  setInterval(()=>{if(gIsConnected())gAutoSync();},60000);  // 1분마다 가계부 등 자동 동기화
   // 알림 엔진
   function renderNotifUI(){
     const el=document.getElementById("notifStatus");if(!el)return;
@@ -1932,7 +1974,7 @@ function init(){
   reminderStartupSummary();
   setInterval(checkReminders,30000);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkReminders();});
-  window.addEventListener("focus",checkReminders);
+  window.addEventListener("focus",()=>{checkReminders();if(gIsConnected())gAutoSync();});
   document.getElementById("dSave").onclick=saveDiary;
   document.getElementById("dDelete").onclick=deleteDiary;
   document.getElementById("photoInput").onchange=e=>{if(e.target.files.length)addPhotos(e.target.files);e.target.value="";};
