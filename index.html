@@ -517,6 +517,20 @@
     <label class="fld">카드 / 결제수단</label>
     <input id="ledCard" placeholder="예: 신한카드, 현금" autocomplete="off" list="ledCardList" maxlength="20">
     <datalist id="ledCardList"></datalist>
+    <label class="fld">할부</label>
+    <select id="ledInstallment">
+      <option value="0">일시불</option>
+      <option value="2">2개월</option>
+      <option value="3">3개월</option>
+      <option value="4">4개월</option>
+      <option value="5">5개월</option>
+      <option value="6">6개월</option>
+      <option value="9">9개월</option>
+      <option value="10">10개월</option>
+      <option value="12">12개월</option>
+      <option value="18">18개월</option>
+      <option value="24">24개월</option>
+    </select>
     <label class="fld">가맹점 / 내용</label>
     <input id="ledMch" placeholder="예: 스타벅스" autocomplete="off" maxlength="60">
     <label class="fld">메모 (선택)</label>
@@ -1025,6 +1039,11 @@ function parseCardSms(t){
   let type="expense";
   if(/취소|환불|승인취소/.test(t))type="income";
   else if(/입금|급여|이체.*입금|환급/.test(t))type="income";
+  // 할부 개월수 인식 (일시불/미표기=0)
+  let installment=0;
+  let im=t.match(/할부\s*(\d{1,2})\s*개월/)||t.match(/(\d{1,2})\s*개월\s*할부/);
+  if(!im&&!/일시불/.test(t))im=t.match(/(\d{1,2})\s*개월/);
+  if(im)installment=parseInt(im[1],10)||0;
   // 가맹점 추출(알려진 토큰 제거 후 남은 텍스트)
   let mch=t.replace(/\[?Web발신\]?/gi,"").replace(/\[[^\]]*\]/g,"")
     .replace(/(KB국민|국민|신한|삼성|현대|롯데|하나|우리|NH농협|농협|비씨|BC|카카오뱅크|카카오|토스|씨티|케이뱅크|IBK기업|기업)\s*(체크카드|신용카드|카드|체크|뱅크)?/g," ")
@@ -1036,7 +1055,7 @@ function parseCardSms(t){
   let merchant=parts.length?parts[parts.length-1]:mch;
   if(merchant.length>40)merchant=merchant.slice(0,40);
   const cat=type==="income"?(/취소|환불/.test(t)?"income_refund":"income_etc"):(guessCat(t)||"etc");
-  return {card,amount,date,type,merchant,cat,raw:t};
+  return {card,amount,date,type,merchant,cat,installment,raw:t};
 }
 function renderLedger(){
   const now=new Date();const mP=`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
@@ -1074,7 +1093,7 @@ function renderLedger(){
       <div class="led-bar" style="background:${cat?cat.color:col}"></div>
       <div class="led-info">
         <div class="led-mch">${cat?cat.icon+" ":""}${esc(x.merchant||"(내용 없음)")}</div>
-        <div class="led-sub">${cat?`<span class="led-cattag" style="color:${cat.color}">${cat.name}</span>`:""}${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
+        <div class="led-sub">${cat?`<span class="led-cattag" style="color:${cat.color}">${cat.name}</span>`:""}${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${(+x.installment>1)?`<span style="color:var(--accent2);font-weight:600">${x.installment}개월 할부·월 ${wonFmt(Math.round((+x.amount||0)/x.installment))}</span>`:""}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
       </div>
       <div class="led-amt ${x.type==='income'?'income':'expense'}">${sign}${wonFmt(+x.amount||0)}</div>
       <button class="led-del" data-id="${x.id}">✕</button>
@@ -1107,6 +1126,7 @@ function openLedgerAdd(prefill){
   document.getElementById("ledAmt").value=p.amount||"";
   document.getElementById("ledDate").value=p.date||todayStr();
   document.getElementById("ledCard").value=p.card||"";
+  document.getElementById("ledInstallment").value=p.installment||0;
   document.getElementById("ledMch").value=p.merchant||"";
   document.getElementById("ledMemo").value="";
   openOverlay("ledgerSheet");
@@ -1120,6 +1140,7 @@ function openLedgerEdit(id){
   document.getElementById("ledAmt").value=x.amount||"";
   document.getElementById("ledDate").value=x.date||todayStr();
   document.getElementById("ledCard").value=x.card||"";
+  document.getElementById("ledInstallment").value=x.installment||0;
   document.getElementById("ledMch").value=x.merchant||"";
   document.getElementById("ledMemo").value=x.memo||"";
   openOverlay("ledgerSheet");
@@ -1129,14 +1150,15 @@ function saveLedger(){
   if(!amount||amount<=0){toast("금액을 입력해주세요");return;}
   const date=document.getElementById("ledDate").value||todayStr();
   const card=document.getElementById("ledCard").value.trim();
+  const installment=parseInt(document.getElementById("ledInstallment").value,10)||0;
   const merchant=document.getElementById("ledMch").value.trim();
   const memo=document.getElementById("ledMemo").value.trim();
   const cat=curLedCat;
   if(editLedId){
     const x=state.ledger.find(e=>e.id===editLedId);
-    if(x)Object.assign(x,{amount,date,card,merchant,memo,cat,type:curLedType});
+    if(x)Object.assign(x,{amount,date,card,installment,merchant,memo,cat,type:curLedType,updatedAt:Date.now()});
   }else{
-    state.ledger.push({id:Date.now()+""+Math.floor(Math.random()*999),amount,date,card,merchant,memo,cat,type:curLedType,createdAt:Date.now()});
+    state.ledger.push({id:Date.now()+""+Math.floor(Math.random()*999),amount,date,card,installment,merchant,memo,cat,type:curLedType,createdAt:Date.now()});
   }
   save();closeOverlay("ledgerSheet");renderLedger();toast(editLedId?"수정했어요":"내역 추가 완료");
 }
