@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-06-17e-->
+<!--APPVER:v2026-06-17f-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -517,7 +517,6 @@
     <div id="gConnected" style="display:none">
       <div class="menu-item" id="mSyncNow"><span class="mi">🔄</span>지금 동기화</div>
       <div class="menu-item" id="mReauth"><span class="mi">🔐</span>백업 권한 추가(구글 재연결)</div>
-      <div class="menu-item" id="mShowCid"><span class="mi">🔑</span>내 클라이언트 ID 복사</div>
       <div class="menu-item" id="mDisconnect" style="color:var(--amber)"><span class="mi">🔌</span>구글 연결 해제</div>
     </div>
     <div id="gDisconnected">
@@ -526,6 +525,7 @@
       <button class="save-btn" id="mConnect" style="margin-top:12px">구글 계정 연결</button>
       <p style="color:var(--muted);font-size:12px;margin-top:10px;line-height:1.6">클라이언트 ID가 없으면 함께 드린 <b>설정 가이드</b>를 따라 5분이면 만들 수 있어요.</p>
     </div>
+    <div class="menu-item" id="mShowCid"><span class="mi">🔑</span>내 클라이언트 ID 보기·복사</div>
     <h3 style="margin-top:22px">🔔 알림</h3>
     <div id="notifStatus" style="font-size:13px;color:var(--muted);background:var(--surface2);border-radius:11px;padding:11px;margin-bottom:10px"></div>
     <div class="menu-item" id="mNotify"><span class="mi">🔔</span>일정 알림 켜기</div>
@@ -659,7 +659,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-06-17e";
+const APP_VERSION="v2026-06-17f";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
