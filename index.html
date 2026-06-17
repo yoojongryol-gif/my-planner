@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-06-17k-->
+<!--APPVER:v2026-06-17l-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -79,7 +79,10 @@
   .day.sel .dn{color:#fff}
   .dn{font-size:13px;font-weight:600;text-align:center}
   .day.sun .dn{color:#f87171}.day.sat .dn{color:#60a5fa}
-  .day.sel.sun .dn,.day.sel.sat .dn{color:#fff}
+  .day.hol .dn{color:#ef4444}
+  .hol-name{font-size:8px;color:#ef4444;font-weight:700;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .day.sel.sun .dn,.day.sel.sat .dn,.day.sel.hol .dn{color:#fff}
+  .day.sel .hol-name{color:#fff}
   .dots{display:flex;gap:3px;margin-top:auto;margin-bottom:5px;flex-wrap:wrap;justify-content:center;max-width:90%}
   .dot{width:5px;height:5px;border-radius:50%}
   .ld{font-size:8px;color:var(--muted);line-height:1;margin-top:1px;text-align:center}
@@ -670,7 +673,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-06-17k";
+const APP_VERSION="v2026-06-17l";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -690,8 +693,31 @@ const CATS={
   personal:{name:"개인",color:"var(--c-personal)",hex:"#22c55e"},
   health:{name:"건강",color:"var(--c-health)",hex:"#ef4444"},
   study:{name:"공부",color:"var(--c-study)",hex:"#f59e0b"},
+  birthday:{name:"생일",color:"#ec4899",hex:"#ec4899"},
   etc:{name:"기타",color:"var(--c-etc)",hex:"#06b6d4"},
 };
+/* ===== 대한민국 공휴일 (양력 고정 + 음력 계산) ===== */
+const FIXED_HOLIDAYS={"01-01":"신정","03-01":"삼일절","05-05":"어린이날","06-06":"현충일","08-15":"광복절","10-03":"개천절","10-09":"한글날","12-25":"크리스마스"};
+function _holidayMapForYear(y){
+  const map={};
+  for(const md in FIXED_HOLIDAYS)map[y+"-"+md]=FIXED_HOLIDAYS[md];
+  // 음력 → 양력 (설날·추석은 전날/다음날 포함, 부처님오신날·단오는 당일)
+  const seol=lunar2solar(y,1,1,false);
+  if(seol){const d=parseYmd(seol);const a=new Date(d);a.setDate(d.getDate()-1);const b=new Date(d);b.setDate(d.getDate()+1);
+    [a,d,b].forEach(x=>map[ymd(x)]="설날");}
+  const chu=lunar2solar(y,8,15,false);
+  if(chu){const d=parseYmd(chu);const a=new Date(d);a.setDate(d.getDate()-1);const b=new Date(d);b.setDate(d.getDate()+1);
+    [a,d,b].forEach(x=>map[ymd(x)]="추석");}
+  const bud=lunar2solar(y,4,8,false);
+  if(bud)map[bud]="부처님오신날";
+  return map;
+}
+let _holCache={};
+function holidayOf(dateStr){
+  const y=+dateStr.slice(0,4);
+  if(!_holCache[y])_holCache[y]=_holidayMapForYear(y);
+  return _holCache[y][dateStr]||null;
+}
 const KEY="myPlanner.v1";
 const APP_VER="2026.06.15-백업진단";
 let state={tasks:[],done:{},diary:{},ledger:[],accounts:[],assetHistory:[],notified:{}}; // diary: {"YYYY-MM-DD":{text,photos:[]}}; ledger:[{id,date,amount,card,merchant,memo,type,raw,createdAt}]; notified: {"taskId|date":ts}
@@ -901,10 +927,11 @@ function renderCal(){
     const moreEv=tasks.length>3?`<div class="ev-more">+${tasks.length-3}</div>`:"";
     const lu=lunarOf(ds);
     const luTxt=lu?(lu.isLeap?"윤":"")+lu.month+"."+lu.day:"";
+    const hol=holidayOf(ds);
     const hasDiary=state.diary[ds]&&(state.diary[ds].text||(state.diary[ds].photos&&state.diary[ds].photos.length));
-    html+=`<div class="day ${c.out?'out':''} ${ds===tStr?'today':''} ${ds===selDate?'sel':''} ${dow===0?'sun':''}${dow===6?'sat':''}" data-ds="${ds}">
+    html+=`<div class="day ${c.out?'out':''} ${ds===tStr?'today':''} ${ds===selDate?'sel':''} ${dow===0?'sun':''}${dow===6?'sat':''} ${hol?'hol':''}" data-ds="${ds}">
       ${hasDiary?'<span class="diary-mark">📔</span>':''}
-      <span class="dn">${c.d}</span><span class="ld ${lu&&lu.isLeap?'leap':''}">${luTxt}</span><div class="evs">${evs}${moreEv}</div></div>`;
+      <span class="dn">${c.d}</span><span class="ld ${lu&&lu.isLeap?'leap':''}">${luTxt}</span>${hol?`<span class="hol-name">${esc(hol)}</span>`:""}<div class="evs">${evs}${moreEv}</div></div>`;
   });
   document.getElementById("calGrid").innerHTML=html;
   document.querySelectorAll(".day").forEach(el=>{
@@ -934,7 +961,7 @@ function renderFilters(){
   document.querySelectorAll(".chip").forEach(el=>el.onclick=()=>{filter=el.dataset.f;renderFilters();renderList();});
 }
 function renderList(){
-  document.getElementById("listTitle").innerHTML=`${fmtKDate(selDate)} <small class="lun-tag">${lunarFull(selDate)}</small> <small id="listSub"></small>`;
+  document.getElementById("listTitle").innerHTML=`${fmtKDate(selDate)} <small class="lun-tag">${lunarFull(selDate)}</small>${holidayOf(selDate)?` <small style="color:#ef4444;font-weight:700">🎌 ${esc(holidayOf(selDate))}</small>`:""} <small id="listSub"></small>`;
   let tasks=tasksOn(selDate);
   if(filter!=="all")tasks=tasks.filter(t=>t.cat===filter);
   // sort: incomplete first, priority, then time
