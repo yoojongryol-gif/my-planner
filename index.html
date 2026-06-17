@@ -491,6 +491,7 @@
     <div class="menu-item" id="mExport"><span class="mi">⬇️</span>데이터 백업(파일로 내보내기)</div>
     <div class="menu-item" id="mImport"><span class="mi">⬆️</span>데이터 복원(파일 가져오기)</div>
     <div class="menu-item" id="mClearDone"><span class="mi">🧹</span>완료된 할일 정리</div>
+    <div class="menu-item" id="mLock"><span class="mi">🔒</span><span id="mLockLabel">앱 잠금 (암호) 설정</span></div>
     <div class="menu-item" id="mReset" style="color:var(--red)"><span class="mi">🗑️</span>전체 초기화</div>
     <input type="file" id="importFile" accept="application/json" style="display:none">
     <p style="color:var(--muted);font-size:12px;margin-top:18px;line-height:1.6">
@@ -583,6 +584,14 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div id="lockScreen" style="position:fixed;inset:0;z-index:500;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center">
+  <div style="font-size:52px">🔒</div>
+  <div style="font-size:16px;font-weight:700;margin:14px 0 18px">암호를 입력하세요</div>
+  <input id="lockInput" type="password" inputmode="numeric" maxlength="6" autocomplete="off" style="width:170px;text-align:center;font-size:24px;letter-spacing:8px;padding:12px" placeholder="••••">
+  <button class="save-btn" id="lockBtn" style="max-width:200px">잠금 해제</button>
+  <div id="lockMsg" style="font-size:12px;color:var(--red);margin-top:10px;min-height:16px"></div>
+</div>
 
 <script>
 const CATS={
@@ -1104,6 +1113,26 @@ function parseCardSms(t){
   const cat=type==="income"?(/취소|환불/.test(t)?"income_refund":"income_etc"):(guessCat(t)||"etc");
   return {card,amount,date,type,merchant,cat,installment,raw:t};
 }
+/* ===== 앱 잠금 (암호) — 가계부·계좌 엿보기 방지. SHA-256 해시 저장(평문 미저장).
+   주의: 기기 데이터 자체는 평문이라 '완전 암호화'는 아님(개발자도구 접근 가능). 일상 보호용. ===== */
+let _hiddenAt=0;
+async function hashPin(pin){const b=new TextEncoder().encode("planner-lock|"+pin);const h=await crypto.subtle.digest("SHA-256",b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,"0")).join("");}
+function lockIsOn(){return !!localStorage.getItem("app.lock");}
+function showLock(){if(!lockIsOn())return;const ls=document.getElementById("lockScreen");if(!ls)return;ls.style.display="flex";document.getElementById("lockInput").value="";document.getElementById("lockMsg").textContent="";setTimeout(()=>{try{document.getElementById("lockInput").focus();}catch(e){}},150);}
+async function tryUnlock(){
+  const pin=document.getElementById("lockInput").value;
+  if(await hashPin(pin)===localStorage.getItem("app.lock")){document.getElementById("lockScreen").style.display="none";document.getElementById("lockMsg").textContent="";}
+  else{document.getElementById("lockMsg").textContent="암호가 틀렸어요";document.getElementById("lockInput").value="";try{document.getElementById("lockInput").focus();}catch(e){}}
+}
+async function setupLock(){
+  if(lockIsOn()){if(confirm("앱 잠금을 끌까요?")){localStorage.removeItem("app.lock");toast("앱 잠금을 껐어요");renderLockUI();}return;}
+  const pin=prompt("설정할 암호 (4~6자리 숫자)");
+  if(pin==null)return;
+  if(!/^\d{4,6}$/.test(pin)){toast("4~6자리 숫자로 입력하세요");return;}
+  localStorage.setItem("app.lock",await hashPin(pin));
+  toast("🔒 앱 잠금을 켰어요 — 다음 실행부터 적용");renderLockUI();
+}
+function renderLockUI(){const el=document.getElementById("mLockLabel");if(el)el.textContent=lockIsOn()?"🔓 앱 잠금 끄기":"앱 잠금 (암호) 설정";}
 function shiftLedMonth(n){
   const base=ledgerMonth||`${new Date().getFullYear()}-${pad(new Date().getMonth()+1)}`;
   const [y,m]=base.split("-").map(Number);
@@ -2159,6 +2188,12 @@ function init(){
       :"⚪ 꺼짐 — 아래 버튼으로 켜주세요";
   }
   document.getElementById("mNotify").onclick=()=>ensureNotifyPermission().then(renderNotifUI);
+  document.getElementById("mLock").onclick=setupLock;
+  document.getElementById("lockBtn").onclick=tryUnlock;
+  document.getElementById("lockInput").addEventListener("keydown",e=>{if(e.key==="Enter")tryUnlock();});
+  renderLockUI();
+  document.addEventListener("visibilitychange",()=>{if(document.hidden)_hiddenAt=Date.now();else if(lockIsOn()&&_hiddenAt&&Date.now()-_hiddenAt>120000)showLock();});
+  showLock();
   renderNotifUI();
   checkReminders();
   reminderStartupSummary();
