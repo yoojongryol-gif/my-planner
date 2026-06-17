@@ -273,6 +273,12 @@
   .lcd-exp{font-size:9px;color:var(--red);line-height:1.25;white-space:nowrap;font-weight:600}
   .lcd-inc{font-size:9px;color:var(--green);line-height:1.25;white-space:nowrap;font-weight:600}
   .lcday.sel .lcd-exp,.lcday.sel .lcd-inc{color:#fff}
+  /* 가계부 날짜별 내역 시트 */
+  .ledday-sum{display:flex;gap:10px;margin-bottom:12px}
+  .ldsum-item{flex:1;background:var(--surface2);border-radius:12px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .ldsum-item span{font-size:11px;color:var(--muted)}
+  .ldsum-item b{font-size:15px}
+  .ledday-list{max-height:46vh;overflow-y:auto;margin-bottom:12px}
   /* 계좌 잔액 */
   .acct-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:12px}
   .acct-head{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:10px}
@@ -570,6 +576,16 @@
   </div>
 </div>
 
+<div class="overlay" id="ledgerDaySheet">
+  <div class="sheet">
+    <div class="grab"></div>
+    <h3 id="ledDayTitle">내역</h3>
+    <div id="ledDaySummary" class="ledday-sum"></div>
+    <div id="ledDayList" class="ledday-list"></div>
+    <button class="save-btn" id="ledDayAdd">+ 이 날 내역 추가</button>
+  </div>
+</div>
+
 <div class="overlay" id="acctSheet">
   <div class="sheet">
     <div class="grab"></div>
@@ -590,6 +606,7 @@
   <div style="font-size:16px;font-weight:700;margin:14px 0 18px">암호를 입력하세요</div>
   <input id="lockInput" type="password" inputmode="numeric" maxlength="6" autocomplete="off" style="width:170px;text-align:center;font-size:24px;letter-spacing:8px;padding:12px" placeholder="••••">
   <button class="save-btn" id="lockBtn" style="max-width:200px">잠금 해제</button>
+  <button class="save-btn" id="lockBioBtn" style="max-width:200px;display:none;background:transparent;border:1px solid var(--accent);color:var(--accent);margin-top:10px">🙂 Face ID / 지문으로 해제</button>
   <div id="lockMsg" style="font-size:12px;color:var(--red);margin-top:10px;min-height:16px"></div>
 </div>
 
@@ -1118,21 +1135,64 @@ function parseCardSms(t){
 let _hiddenAt=0;
 async function hashPin(pin){const b=new TextEncoder().encode("planner-lock|"+pin);const h=await crypto.subtle.digest("SHA-256",b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 function lockIsOn(){return !!localStorage.getItem("app.lock");}
-function showLock(){if(!lockIsOn())return;const ls=document.getElementById("lockScreen");if(!ls)return;ls.style.display="flex";document.getElementById("lockInput").value="";document.getElementById("lockMsg").textContent="";setTimeout(()=>{try{document.getElementById("lockInput").focus();}catch(e){}},150);}
+/* ----- Face ID / 지문 (WebAuthn 플랫폼 인증) ----- */
+function _bufToB64u(buf){const b=new Uint8Array(buf);let s="";for(let i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");}
+function _b64uToBuf(s){s=s.replace(/-/g,"+").replace(/_/g,"/");const pad=s.length%4?4-(s.length%4):0;s+="=".repeat(pad);const bin=atob(s);const b=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)b[i]=bin.charCodeAt(i);return b.buffer;}
+function bioIsOn(){return !!localStorage.getItem("app.lock.bio");}
+async function bioAvailable(){try{return !!window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();}catch(e){return false;}}
+async function registerBio(){
+  if(!await bioAvailable()){toast("이 기기는 생체인증을 지원하지 않아요");return false;}
+  try{
+    const cred=await navigator.credentials.create({publicKey:{
+      challenge:crypto.getRandomValues(new Uint8Array(32)),
+      rp:{name:"마이 플래너"},
+      user:{id:crypto.getRandomValues(new Uint8Array(16)),name:"planner-user",displayName:"마이 플래너"},
+      pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],
+      authenticatorSelection:{authenticatorAttachment:"platform",userVerification:"required",residentKey:"preferred"},
+      timeout:60000,attestation:"none"
+    }});
+    if(!cred)return false;
+    localStorage.setItem("app.lock.bio",_bufToB64u(cred.rawId));
+    return true;
+  }catch(e){toast("생체인증 등록 실패 — 암호로 사용하세요");return false;}
+}
+async function bioUnlock(){
+  const id=localStorage.getItem("app.lock.bio");if(!id)return;
+  document.getElementById("lockMsg").textContent="";
+  try{
+    const a=await navigator.credentials.get({publicKey:{
+      challenge:crypto.getRandomValues(new Uint8Array(32)),
+      allowCredentials:[{type:"public-key",id:_b64uToBuf(id)}],
+      userVerification:"required",timeout:60000
+    }});
+    if(a){document.getElementById("lockScreen").style.display="none";document.getElementById("lockMsg").textContent="";}
+  }catch(e){document.getElementById("lockMsg").textContent="생체인증 취소됨 — 암호로 해제하세요";}
+}
+function showLock(){if(!lockIsOn())return;const ls=document.getElementById("lockScreen");if(!ls)return;ls.style.display="flex";document.getElementById("lockInput").value="";document.getElementById("lockMsg").textContent="";const bb=document.getElementById("lockBioBtn");if(bb)bb.style.display=bioIsOn()?"block":"none";setTimeout(()=>{try{document.getElementById("lockInput").focus();}catch(e){}},150);}
 async function tryUnlock(){
   const pin=document.getElementById("lockInput").value;
   if(await hashPin(pin)===localStorage.getItem("app.lock")){document.getElementById("lockScreen").style.display="none";document.getElementById("lockMsg").textContent="";}
   else{document.getElementById("lockMsg").textContent="암호가 틀렸어요";document.getElementById("lockInput").value="";try{document.getElementById("lockInput").focus();}catch(e){}}
 }
 async function setupLock(){
-  if(lockIsOn()){if(confirm("앱 잠금을 끌까요?")){localStorage.removeItem("app.lock");toast("앱 잠금을 껐어요");renderLockUI();}return;}
+  if(lockIsOn()){
+    if(!bioIsOn()&&await bioAvailable()&&confirm("Face ID(또는 지문)로 잠금 해제를 추가할까요?")){
+      if(await registerBio())toast("✅ Face ID/지문 추가 완료");
+      return;
+    }
+    if(confirm("앱 잠금을 끌까요?")){localStorage.removeItem("app.lock");localStorage.removeItem("app.lock.bio");toast("앱 잠금을 껐어요");renderLockUI();}
+    return;
+  }
   const pin=prompt("설정할 암호 (4~6자리 숫자)");
   if(pin==null)return;
   if(!/^\d{4,6}$/.test(pin)){toast("4~6자리 숫자로 입력하세요");return;}
-  localStorage.setItem("app.lock",await hashPin(pin));
-  toast("🔒 앱 잠금을 켰어요 — 다음 실행부터 적용");renderLockUI();
+  localStorage.setItem("app.lock",await hashPin(pin));renderLockUI();
+  if(await bioAvailable()&&confirm("Face ID(또는 지문)로도 잠금을 해제할까요?")&&await registerBio()){
+    toast("🔒 잠금 + Face ID/지문 설정 완료 — 다음 실행부터 적용");return;
+  }
+  toast("🔒 앱 잠금을 켰어요 — 다음 실행부터 적용");
 }
-function renderLockUI(){const el=document.getElementById("mLockLabel");if(el)el.textContent=lockIsOn()?"🔓 앱 잠금 끄기":"앱 잠금 (암호) 설정";}
+function renderLockUI(){const el=document.getElementById("mLockLabel");if(el)el.textContent=lockIsOn()?(bioIsOn()?"🔓 앱 잠금/Face ID 끄기":"🔓 앱 잠금 끄기 (Face ID 추가)"):"앱 잠금 (암호) 설정";}
 function shiftLedMonth(n){
   const base=ledgerMonth||`${new Date().getFullYear()}-${pad(new Date().getMonth()+1)}`;
   const [y,m]=base.split("-").map(Number);
@@ -1158,7 +1218,37 @@ function renderLedCalendar(mP){
     html+=`<div class="lcday ${ledDay===ds?'sel':''} ${ds===today?'today':''}" data-ds="${ds}"><div class="lcd-n">${d}</div>${ex?`<div class="lcd-exp">-${wonFmtK(ex)}</div>`:""}${inc?`<div class="lcd-inc">+${wonFmtK(inc)}</div>`:""}</div>`;
   }
   el.innerHTML=html+`</div>`;
-  el.querySelectorAll(".lcday[data-ds]").forEach(c=>c.onclick=()=>{ledDay=(ledDay===c.dataset.ds?null:c.dataset.ds);renderLedger();});
+  el.querySelectorAll(".lcday[data-ds]").forEach(c=>c.onclick=()=>{ledDay=c.dataset.ds;renderLedger();openLedgerDay(c.dataset.ds);});
+}
+function openLedgerDay(ds){
+  ledDay=ds;
+  renderLedgerDayBody(ds);
+  openOverlay("ledgerDaySheet");
+}
+function renderLedgerDayBody(ds){
+  document.getElementById("ledDayTitle").textContent=fmtKDate(ds);
+  const rows=(state.ledger||[]).filter(x=>x.date===ds).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const exp=rows.filter(x=>x.type!=="income").reduce((s,x)=>s+(+x.amount||0),0);
+  const inc=rows.filter(x=>x.type==="income").reduce((s,x)=>s+(+x.amount||0),0);
+  document.getElementById("ledDaySummary").innerHTML=
+    `<div class="ldsum-item"><span>지출</span><b style="color:var(--red)">-${wonFmt(exp)}</b></div>`+
+    `<div class="ldsum-item"><span>수입</span><b style="color:var(--green)">+${wonFmt(inc)}</b></div>`;
+  const list=document.getElementById("ledDayList");
+  if(!rows.length){list.innerHTML=`<div class="empty"><span class="em">💳</span>이 날 내역이 없어요.</div>`;return;}
+  list.innerHTML=rows.map(x=>{
+    const col=cardColor(x.card);const sign=x.type==="income"?"+":"-";const cat=LED_CATS[x.cat];
+    return `<div class="led-row" data-id="${x.id}">
+      <div class="led-bar" style="background:${cat?cat.color:col}"></div>
+      <div class="led-info">
+        <div class="led-mch">${cat?cat.icon+" ":""}${esc(x.merchant||"(내용 없음)")}</div>
+        <div class="led-sub">${cat?`<span class="led-cattag" style="color:${cat.color}">${cat.name}</span>`:""}${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${(+x.installment>1)?`<span style="color:var(--accent2);font-weight:600">${x.installment}개월 할부·월 ${wonFmt(Math.round((+x.amount||0)/x.installment))}</span>`:""}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
+      </div>
+      <div class="led-amt ${x.type==='income'?'income':'expense'}">${sign}${wonFmt(+x.amount||0)}</div>
+      <button class="led-del" data-id="${x.id}">✕</button>
+    </div>`;
+  }).join("");
+  list.querySelectorAll(".led-del").forEach(b=>b.onclick=e=>{e.stopPropagation();delLedger(b.dataset.id);renderLedgerDayBody(ds);});
+  list.querySelectorAll(".led-row").forEach(r=>r.onclick=e=>{if(e.target.closest(".led-del"))return;closeOverlay("ledgerDaySheet");openLedgerEdit(r.dataset.id);});
 }
 let editAcctId=null;
 function recordAssetSnapshot(){
@@ -2130,6 +2220,7 @@ function init(){
   document.getElementById("acctSave").onclick=saveAccount;
   document.getElementById("acctDelete").onclick=deleteAccount;
   document.getElementById("ledSave").onclick=saveLedger;
+  document.getElementById("ledDayAdd").onclick=()=>{closeOverlay("ledgerDaySheet");openLedgerAdd({date:ledDay||todayStr()});};
   document.getElementById("ledTypeSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>setLedType(b.dataset.t));
   document.getElementById("mSave").onclick=saveMemo;
   document.getElementById("monthPlanCard").onclick=()=>openPlan("month");
@@ -2190,6 +2281,7 @@ function init(){
   document.getElementById("mNotify").onclick=()=>ensureNotifyPermission().then(renderNotifUI);
   document.getElementById("mLock").onclick=setupLock;
   document.getElementById("lockBtn").onclick=tryUnlock;
+  document.getElementById("lockBioBtn").onclick=bioUnlock;
   document.getElementById("lockInput").addEventListener("keydown",e=>{if(e.key==="Enter")tryUnlock();});
   renderLockUI();
   document.addEventListener("visibilitychange",()=>{if(document.hidden)_hiddenAt=Date.now();else if(lockIsOn()&&_hiddenAt&&Date.now()-_hiddenAt>120000)showLock();});
