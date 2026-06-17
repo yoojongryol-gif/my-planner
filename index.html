@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-06-17o-->
+<!--APPVER:v2026-06-17p-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -583,6 +583,20 @@
   </div>
 </div>
 
+<!-- 공유로 받은 내용 → 가계부/메모 선택 -->
+<div class="overlay" id="shareSheet">
+  <div class="sheet">
+    <div class="grab"></div>
+    <h3>📥 공유된 내용 저장</h3>
+    <div id="sharePreview" style="background:var(--surface2);border-radius:11px;padding:11px;font-size:13px;max-height:130px;overflow:auto;white-space:pre-wrap;line-height:1.5;margin-bottom:12px"></div>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 10px">어디에 추가할까요?</p>
+    <div class="row2">
+      <button class="save-btn" id="shareToLedger" style="background:var(--accent2)">💳 가계부</button>
+      <button class="save-btn" id="shareToMemo">📝 메모</button>
+    </div>
+  </div>
+</div>
+
 <!-- Plan sheet -->
 <div class="overlay" id="planSheet">
   <div class="sheet">
@@ -677,7 +691,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-06-17o";
+const APP_VERSION="v2026-06-17p";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -2500,7 +2514,8 @@ function updateSyncUI(stateName){
 }
 
 /* ---------- init ---------- */
-/* 공유로 받기 — 카톡/문자 결제내용을 공유하면 가계부에 자동 파싱 (Web Share Target / iOS 단축어 ?addtx=) */
+/* 공유로 받기 — 카톡/문자 등 공유한 내용을 가계부 또는 메모로 (Web Share Target / iOS 단축어 ?addtx=) */
+let _sharedText="";
 function handleSharedText(){
   try{
     const p=new URLSearchParams(location.search);
@@ -2510,11 +2525,23 @@ function handleSharedText(){
     txt=(txt||"").trim();
     if(!txt)return;
     history.replaceState({},"",location.pathname);   // 새로고침 시 중복 방지
-    const r=parseCardSms(txt);
-    switchTab("ledger");
-    openLedgerAdd(r);
-    toast("공유된 결제 내용을 인식했어요 — 확인 후 저장하세요");
+    _sharedText=txt;
+    document.getElementById("sharePreview").textContent=txt;
+    openOverlay("shareSheet");
   }catch(e){}
+}
+function shareToLedger(){
+  closeOverlay("shareSheet");
+  switchTab("ledger");
+  openLedgerAdd(parseCardSms(_sharedText));
+  toast("결제 내용을 인식했어요 — 확인 후 저장하세요");
+}
+async function shareToMemo(){
+  closeOverlay("shareSheet");
+  switchTab("memo");
+  await openMemo(null);
+  document.getElementById("mText").value=_sharedText;
+  toast("메모에 옮겼어요 — 분류 정하고 저장하세요");
 }
 function init(){
   load();
@@ -2651,7 +2678,9 @@ function init(){
       sheet.appendChild(b);
     }
   });
-  handleSharedText();   // 공유로 들어온 결제내용 처리
+  document.getElementById("shareToLedger").onclick=shareToLedger;
+  document.getElementById("shareToMemo").onclick=shareToMemo;
+  handleSharedText();   // 공유로 들어온 내용 처리(가계부/메모 선택)
 }
 init();
 </script>
