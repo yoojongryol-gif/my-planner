@@ -365,6 +365,7 @@
     <div class="card over"><div class="num" id="ledSumExp">0</div><div class="lbl">지출</div></div>
     <div class="card done"><div class="num" id="ledSumInc">0</div><div class="lbl">수입</div></div>
   </div>
+  <div id="ledCompare"></div>
   <div id="ledCalendar"></div>
   <div id="ledChart"></div>
   <div class="led-cards" id="ledCatFilter"></div>
@@ -593,7 +594,7 @@ const CATS={
 };
 const KEY="myPlanner.v1";
 const APP_VER="2026.06.15-백업진단";
-let state={tasks:[],done:{},diary:{},ledger:[],accounts:[],notified:{}}; // diary: {"YYYY-MM-DD":{text,photos:[]}}; ledger:[{id,date,amount,card,merchant,memo,type,raw,createdAt}]; notified: {"taskId|date":ts}
+let state={tasks:[],done:{},diary:{},ledger:[],accounts:[],assetHistory:[],notified:{}}; // diary: {"YYYY-MM-DD":{text,photos:[]}}; ledger:[{id,date,amount,card,merchant,memo,type,raw,createdAt}]; notified: {"taskId|date":ts}
 let viewY,viewM,selDate,editId=null,curRep="none",curCat="work",filter="all";
 let curTab="cal",editMemoId=null,curMemoPhotos=[],curMemoAudio=null,mediaRec=null,recChunks=[],recStream=null;
 let speechRec=null,curTranscript="";
@@ -696,7 +697,7 @@ async function migratePhotos(){
 }
 
 /* ---------- storage ---------- */
-function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){state=d;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.accounts=state.accounts||[];state.notified=state.notified||{};}}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){state=d;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.accounts=state.accounts||[];state.assetHistory=state.assetHistory||[];state.notified=state.notified||{};}}catch(e){}}
 function save(){state._savedAt=Date.now();localStorage.setItem(KEY,JSON.stringify(state));if(typeof scheduleBackup==="function")scheduleBackup();}
 
 /* ---------- overlay open/close + 모바일 뒤로가기 ---------- */
@@ -1127,13 +1128,33 @@ function renderLedCalendar(mP){
   el.querySelectorAll(".lcday[data-ds]").forEach(c=>c.onclick=()=>{ledDay=(ledDay===c.dataset.ds?null:c.dataset.ds);renderLedger();});
 }
 let editAcctId=null;
+function recordAssetSnapshot(){
+  state.assetHistory=state.assetHistory||[];
+  const total=(state.accounts||[]).reduce((s,a)=>s+(+a.balance||0),0);
+  const today=todayStr();
+  const ex=state.assetHistory.find(h=>h.date===today);
+  if(ex){ex.total=total;ex.updatedAt=Date.now();}
+  else state.assetHistory.push({date:today,total,createdAt:Date.now()});
+}
+function assetTrendSVG(){
+  const pts=(state.assetHistory||[]).slice().sort((a,b)=>a.date.localeCompare(b.date)).slice(-30);
+  if(pts.length<2)return "";
+  const W=Math.max(300,pts.length*36),H=120,padL=8,padR=8;
+  const vals=pts.map(p=>+p.total||0);let mn=Math.min(...vals),mx=Math.max(...vals);if(mn===mx){mn=mn*0.95;mx=mx*1.05||1;}
+  const x=i=>padL+i*((W-padL-padR)/(pts.length-1));
+  const y=v=>10+(1-(v-mn)/(mx-mn||1))*(H-30);
+  let d="",dots="";
+  pts.forEach((p,i)=>{const px=x(i).toFixed(1),py=y(+p.total||0).toFixed(1);d+=(i?"L":"M")+px+" "+py+" ";dots+=`<circle cx="${px}" cy="${py}" r="2.5" fill="var(--accent2)"></circle>`;});
+  const last=pts[pts.length-1],first=pts[0];
+  return `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:11px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">📈 자산 추이</div><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:90px"><path d="${d}" fill="none" stroke="var(--accent2)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>${dots}</svg><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted)"><span>${first.date.slice(5).replace("-","/")} ${wonFmt(first.total)}원</span><span>${last.date.slice(5).replace("-","/")} <b style="color:var(--accent2)">${wonFmt(last.total)}원</b></span></div></div>`;
+}
 function renderAccounts(){
   const el=document.getElementById("acctSection");if(!el)return;
   const accts=state.accounts||[];
   const total=accts.reduce((s,a)=>s+(+a.balance||0),0);
   el.innerHTML=`<div class="acct-card"><div class="acct-head"><span>💰 계좌 잔액</span><span class="acct-total">총 ${wonFmt(total)}원</span></div>`+
     (accts.length?accts.map(a=>`<div class="acct-row" data-id="${a.id}"><span>${esc(a.name||"계좌")}</span><b>${wonFmt(+a.balance||0)}원</b></div>`).join(""):`<div class="acct-empty">등록된 계좌가 없어요. 아래로 추가하세요.</div>`)+
-    `<button class="acct-add" id="acctAdd">+ 계좌 추가</button></div>`;
+    `<button class="acct-add" id="acctAdd">+ 계좌 추가</button>`+assetTrendSVG()+`</div>`;
   el.querySelector("#acctAdd").onclick=()=>openAcctSheet(null);
   el.querySelectorAll(".acct-row").forEach(r=>r.onclick=()=>openAcctSheet(r.dataset.id));
 }
@@ -1153,13 +1174,13 @@ function saveAccount(){
   state.accounts=state.accounts||[];
   if(editAcctId){const a=state.accounts.find(x=>x.id===editAcctId);if(a)Object.assign(a,{name,balance,updatedAt:Date.now()});}
   else state.accounts.push({id:Date.now()+""+Math.floor(Math.random()*999),name,balance,createdAt:Date.now()});
-  save();closeOverlay("acctSheet");renderAccounts();toast(editAcctId?"수정했어요":"계좌 추가 완료");
+  recordAssetSnapshot();save();closeOverlay("acctSheet");renderAccounts();toast(editAcctId?"수정했어요":"계좌 추가 완료");
 }
 function deleteAccount(){
   if(!editAcctId)return;
   if(!confirm("이 계좌를 삭제할까요?"))return;
   state.accounts=(state.accounts||[]).filter(x=>x.id!==editAcctId);
-  save();closeOverlay("acctSheet");renderAccounts();toast("삭제했어요");
+  recordAssetSnapshot();save();closeOverlay("acctSheet");renderAccounts();toast("삭제했어요");
 }
 function renderLedger(){
   const now=new Date();
@@ -1171,6 +1192,15 @@ function renderLedger(){
   const inc=month.filter(x=>x.type==="income").reduce((s,x)=>s+(+x.amount||0),0);
   document.getElementById("ledSumExp").textContent=wonFmt(exp);
   document.getElementById("ledSumInc").textContent=wonFmt(inc);
+  // 전월 대비 지출
+  const [cy,cm]=mP.split("-").map(Number);
+  const pv=new Date(cy,cm-2,1),pvP=pv.getFullYear()+"-"+pad(pv.getMonth()+1);
+  const prevExp=(state.ledger||[]).filter(x=>x.type!=="income"&&x.date&&x.date.indexOf(pvP)===0).reduce((s,x)=>s+(+x.amount||0),0);
+  const cmpEl=document.getElementById("ledCompare");
+  if(prevExp>0){
+    const diff=exp-prevExp,pct=Math.round(Math.abs(diff)/prevExp*100),up=diff>0;
+    cmpEl.innerHTML=`<div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:12px">${pv.getMonth()+1}월 ${wonFmt(prevExp)}원 → 이달 <b style="color:${up?'var(--red)':'var(--green)'}">${up?'▲':'▼'} ${wonFmt(Math.abs(diff))}원 (${pct}%)</b></div>`;
+  }else cmpEl.innerHTML="";
   // 카테고리별 지출 그래프 (선택 월)
   const expByCat={};
   month.filter(x=>x.type!=="income").forEach(x=>{const k=x.cat||"etc";expByCat[k]=(expByCat[k]||0)+(+x.amount||0);});
@@ -1938,7 +1968,7 @@ async function gDriveRestore(){
     if(!confirm(`구글 백업을 불러옵니다.\n일정 ${cnt} · 다이어리 ${dcnt} · 메모 ${mcnt} · 가계부 ${lcnt}건\n\n지금 이 기기의 내용은 백업 내용으로 덮어써집니다. 진행할까요?`))return;
     const photos=data.photos||{};
     for(const id in photos){try{await idbPut(id,photos[id]);}catch(e){}}
-    state=st;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.accounts=state.accounts||[];state.notified=state.notified||{};
+    state=st;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.accounts=state.accounts||[];state.assetHistory=state.assetHistory||[];state.notified=state.notified||{};
     save();renderAll();renderMemos();toast("✅ 구글 백업에서 복원했어요");closeMenu();
   }catch(e){toast("복원 중 오류가 났어요");}
 }
@@ -1952,10 +1982,17 @@ function _mergeById(a,b){
   for(const x of b){if(!x||!x.id)continue;const e=m[x.id];if(!e||((x.updatedAt||x.createdAt||0)>(e.updatedAt||e.createdAt||0)))m[x.id]=x;}
   return Object.values(m);
 }
+function _mergeByDate(a,b){
+  a=a||[];b=b||[];const m={};
+  for(const x of a)if(x&&x.date)m[x.date]=x;
+  for(const x of b){if(!x||!x.date)continue;const e=m[x.date];if(!e||((x.updatedAt||x.createdAt||0)>(e.updatedAt||e.createdAt||0)))m[x.date]=x;}
+  return Object.values(m);
+}
 function mergeRemote(remote){
   const r=remote||{};
   state.ledger=_mergeById(state.ledger,r.ledger);                       // 가계부: id 합집합, 최신 우선
   state.accounts=_mergeById(state.accounts,r.accounts);                 // 계좌 잔액: id 합집합, 최신 우선
+  state.assetHistory=_mergeByDate(state.assetHistory,r.assetHistory);   // 자산 추이: 날짜별 합집합, 최신 우선
   state.memos=_mergeById(state.memos,r.memos);                          // 메모: id 합집합
   state.diary=Object.assign({},r.diary||{},state.diary||{});            // 다이어리: 날짜키 합집합(현 기기 우선)
   state.monthPlan=Object.assign({},r.monthPlan||{},state.monthPlan||{});
@@ -2087,7 +2124,7 @@ function init(){
   };
   document.getElementById("mReset").onclick=()=>{
     if(confirm("정말 모든 데이터를 삭제할까요? 복구할 수 없습니다."))
-      {const keepDel=state.gdel||[];state={tasks:[],done:{},diary:{},memos:[],monthPlan:{},weekPlan:{},ledger:[],accounts:[],notified:{},gdel:keepDel,gSyncToken:null,gLast:0};save();renderAll();renderMemos();toast("초기화했어요");closeMenu();}
+      {const keepDel=state.gdel||[];state={tasks:[],done:{},diary:{},memos:[],monthPlan:{},weekPlan:{},ledger:[],accounts:[],assetHistory:[],notified:{},gdel:keepDel,gSyncToken:null,gLast:0};save();renderAll();renderMemos();toast("초기화했어요");closeMenu();}
   };
   // Google sync wiring
   gLoadCfg();
