@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-06-17f-->
+<!--APPVER:v2026-06-17g-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -492,8 +492,10 @@
   <div class="sheet">
     <div class="grab"></div>
     <h3 id="diaryTitle">다이어리</h3>
-    <label class="fld">오늘의 기록</label>
-    <textarea id="dText" rows="6" placeholder="오늘 하루는 어땠나요?"></textarea>
+    <label class="fld">날짜</label>
+    <input type="date" id="dDate">
+    <label class="fld">기록</label>
+    <textarea id="dText" rows="6" placeholder="이 날 하루는 어땠나요?"></textarea>
     <label class="fld">사진</label>
     <div class="photo-grid" id="photoGrid"></div>
     <input type="file" id="photoInput" accept="image/*" multiple style="display:none">
@@ -659,7 +661,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-06-17f";
+const APP_VERSION="v2026-06-17g";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -1055,13 +1057,19 @@ function renderDiaryList(){
   el.querySelectorAll(".dl-card").forEach(c=>c.onclick=()=>openDiaryFor(c.dataset.ds));
 }
 function openDiaryFor(ds){selDate=ds;openDiary();}
-async function openDiary(){
-  const d=state.diary[selDate]||{text:"",photos:[]};
+let diaryDate=null;
+async function loadDiary(ds){
+  diaryDate=ds;
+  const d=state.diary[ds]||{text:"",photos:[]};
+  document.getElementById("dDate").value=ds;
+  document.getElementById("diaryTitle").innerHTML=`📔 다이어리 <small class="lun-tag" style="font-size:12px">${lunarFull(ds)}</small>`;
+  document.getElementById("dText").value=d.text||"";
   curPhotos=[];
   for(const id of (d.photos||[])){const data=await idbGet(id);if(data)curPhotos.push({id,data});}
-  document.getElementById("diaryTitle").innerHTML=`📔 ${fmtKDate(selDate)} <small class="lun-tag" style="font-size:12px">${lunarFull(selDate)}</small>`;
-  document.getElementById("dText").value=d.text||"";
   renderPhotoGrid();
+}
+async function openDiary(){
+  await loadDiary(selDate);
   openOverlay("diarySheet");
 }
 function renderPhotoGrid(){
@@ -1102,8 +1110,9 @@ function imgPasteHandler(addFn){
   };
 }
 async function saveDiary(){
+  const ds=diaryDate||selDate;
   const text=document.getElementById("dText").value.trim();
-  const oldIds=(state.diary[selDate]&&state.diary[selDate].photos)||[];
+  const oldIds=(state.diary[ds]&&state.diary[ds].photos)||[];
   const newIds=[];
   for(const p of curPhotos){
     if(!p.id){p.id=genPid();try{await idbPut(p.id,p.data);}catch(e){toast("사진 저장 실패 — 저장 공간을 확인하세요");return;}}
@@ -1111,17 +1120,20 @@ async function saveDiary(){
   }
   // 편집 중 제거된 사진은 IndexedDB에서도 정리
   for(const oid of oldIds){if(newIds.indexOf(oid)<0)idbDel(oid);}
-  if(!text&&!newIds.length){delete state.diary[selDate];}
-  else state.diary[selDate]={text,photos:newIds};
+  if(!text&&!newIds.length){delete state.diary[ds];}
+  else state.diary[ds]={text,photos:newIds};
   try{save();}catch(e){toast("저장 실패 — 잠시 후 다시 시도");return;}
+  selDate=ds;
   closeOverlay("diarySheet");
-  renderAll();toast("다이어리 저장 완료");
+  renderAll();toast(`${fmtKDate(ds)} 다이어리 저장 완료`);
 }
 function deleteDiary(){
+  const ds=diaryDate||selDate;
   if(confirm("이 날의 다이어리를 삭제할까요?")){
-    const ids=(state.diary[selDate]&&state.diary[selDate].photos)||[];
+    const ids=(state.diary[ds]&&state.diary[ds].photos)||[];
     ids.forEach(id=>idbDel(id));
-    delete state.diary[selDate];save();
+    delete state.diary[ds];save();
+    selDate=ds;
     closeOverlay("diarySheet");renderAll();toast("삭제했어요");
   }
 }
@@ -2437,6 +2449,7 @@ function init(){
   window.addEventListener("focus",()=>{checkReminders();if(gIsConnected())gAutoSync();});
   document.getElementById("dSave").onclick=saveDiary;
   document.getElementById("dDelete").onclick=deleteDiary;
+  document.getElementById("dDate").onchange=e=>{if(e.target.value)loadDiary(e.target.value);};
   document.getElementById("photoInput").onchange=e=>{if(e.target.files.length)addPhotos(e.target.files);e.target.value="";};
   document.getElementById("dText").addEventListener("paste",imgPasteHandler(addPhotos));
   document.getElementById("mText").addEventListener("paste",imgPasteHandler(addMemoPhotos));
