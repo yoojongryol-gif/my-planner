@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-06-17n-->
+<!--APPVER:v2026-06-17o-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -677,7 +677,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-06-17n";
+const APP_VERSION="v2026-06-17o";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -727,7 +727,7 @@ const APP_VER="2026.06.15-백업진단";
 let state={tasks:[],done:{},diary:{},ledger:[],accounts:[],assetHistory:[],notified:{}}; // diary: {"YYYY-MM-DD":{text,photos:[]}}; ledger:[{id,date,amount,card,merchant,memo,type,raw,createdAt}]; notified: {"taskId|date":ts}
 let viewY,viewM,selDate,editId=null,curRep="none",curCat="work",filter="all";
 let curTab="cal",editMemoId=null,curMemoPhotos=[],curMemoAudio=null,mediaRec=null,recChunks=[],recStream=null;
-let curMemoCat="etc",memoFilter="all";
+let curMemoCat="etc",memoFilter="all",secretUnlocked=false;
 const MEMO_CATS={work:{name:"업무",icon:"💼",hex:"#6366f1"},personal:{name:"개인",icon:"🙂",hex:"#22c55e"},secret:{name:"시크릿",icon:"🔒",hex:"#ef4444"},etc:{name:"기타",icon:"📝",hex:"#06b6d4"}};
 let speechRec=null,curTranscript="";
 let curSubs=[];
@@ -1312,7 +1312,23 @@ async function bioUnlock(){
     if(a){document.getElementById("lockScreen").style.display="none";document.getElementById("lockMsg").textContent="";}
   }catch(e){document.getElementById("lockMsg").textContent="생체인증 취소됨 — 암호로 해제하세요";}
 }
-function showLock(){if(!lockIsOn())return;const ls=document.getElementById("lockScreen");if(!ls)return;ls.style.display="flex";document.getElementById("lockInput").value="";document.getElementById("lockMsg").textContent="";const bb=document.getElementById("lockBioBtn");if(bb)bb.style.display=bioIsOn()?"block":"none";setTimeout(()=>{try{document.getElementById("lockInput").focus();}catch(e){}},150);}
+async function bioVerify(){
+  const id=localStorage.getItem("app.lock.bio");if(!id)return false;
+  try{const a=await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),allowCredentials:[{type:"public-key",id:_b64uToBuf(id)}],userVerification:"required",timeout:60000}});return !!a;}catch(e){return false;}
+}
+// 시크릿 메모 보기 — 앱 잠금(암호/Face ID)으로 인증
+async function unlockSecret(){
+  if(!lockIsOn()){ // 앱 잠금 미설정이면 보호할 수단이 없음 → 보여주되 안내
+    secretUnlocked=true;renderMemos();
+    toast("앱 잠금(설정 🔒)을 켜면 시크릿을 암호로 보호할 수 있어요");return;
+  }
+  if(bioIsOn()&&await bioVerify()){secretUnlocked=true;renderMemos();toast("🔓 시크릿 잠금 해제");return;}
+  const pin=prompt("시크릿 메모 보기 — 암호 입력");
+  if(pin==null)return;
+  if(await hashPin(pin)===localStorage.getItem("app.lock")){secretUnlocked=true;renderMemos();toast("🔓 시크릿 잠금 해제");}
+  else toast("암호가 틀렸어요");
+}
+function showLock(){secretUnlocked=false;if(!lockIsOn())return;const ls=document.getElementById("lockScreen");if(!ls)return;ls.style.display="flex";document.getElementById("lockInput").value="";document.getElementById("lockMsg").textContent="";const bb=document.getElementById("lockBioBtn");if(bb)bb.style.display=bioIsOn()?"block":"none";setTimeout(()=>{try{document.getElementById("lockInput").focus();}catch(e){}},150);}
 async function tryUnlock(){
   const pin=document.getElementById("lockInput").value;
   if(await hashPin(pin)===localStorage.getItem("app.lock")){document.getElementById("lockScreen").style.display="none";document.getElementById("lockMsg").textContent="";}
@@ -1704,11 +1720,21 @@ function renderMemos(){
     if(!!b.pin!==!!a.pin)return b.pin?1:-1;
     return (b.createdAt||0)-(a.createdAt||0);
   });
+  const secretCount=memos.filter(m=>(m.cat||"etc")==="secret").length;
   if(memoFilter!=="all")memos=memos.filter(m=>(m.cat||"etc")===memoFilter);
   const sub=document.getElementById("memoSub");
+  // 시크릿 탭 + 잠김 → 잠금 해제 안내
+  if(memoFilter==="secret"&&!secretUnlocked){
+    if(sub)sub.textContent=secretCount+"개 (잠김)";
+    el.innerHTML=`<div class="empty"><span class="em">🔒</span>시크릿 메모는 잠겨 있어요.<br><button class="save-btn" id="secUnlockBtn" style="max-width:220px;margin:14px auto 0">🔓 잠금 해제하고 보기</button></div>`;
+    const b=document.getElementById("secUnlockBtn");if(b)b.onclick=unlockSecret;
+    return;
+  }
+  if(memoFilter==="all"&&!secretUnlocked)memos=memos.filter(m=>(m.cat||"etc")!=="secret");  // 전체에서 시크릿 숨김
   if(sub)sub.textContent=memos.length?memos.length+"개":"";
-  if(!memos.length){el.innerHTML=`<div class="empty"><span class="em">📝</span>${memoFilter==="all"?"메모가 없어요.<br>+ 버튼으로 추가해보세요.":"이 분류의 메모가 없어요."}</div>`;return;}
-  el.innerHTML=memos.map(m=>{
+  const secBar=(memoFilter==="all"&&!secretUnlocked&&secretCount>0)?`<div id="secBar" style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;text-align:center;cursor:pointer;color:var(--red);font-weight:600">🔒 시크릿 메모 ${secretCount}개 — 탭하면 잠금 해제</div>`:"";
+  if(!memos.length){el.innerHTML=secBar+`<div class="empty"><span class="em">📝</span>${memoFilter==="all"?(secretCount>0?"표시할 일반 메모가 없어요.":"메모가 없어요.<br>+ 버튼으로 추가해보세요."):"이 분류의 메모가 없어요."}</div>`;const sb=document.getElementById("secBar");if(sb)sb.onclick=unlockSecret;return;}
+  el.innerHTML=secBar+memos.map(m=>{
     const photos=(m.photos||[]).slice(0,4);
     const media=(photos.length||m.audio)?`<div class="memo-media">${photos.map(id=>`<img data-pid="${id}">`).join("")}${m.audio?'<span class="memo-audio-tag">🎙 음성</span>':""}</div>`:"";
     const mc=MEMO_CATS[m.cat]||MEMO_CATS.etc;
@@ -1722,6 +1748,7 @@ function renderMemos(){
   el.querySelectorAll(".memo-media img[data-pid]").forEach(img=>{idbGet(img.dataset.pid).then(d=>{if(d)img.src=d;});img.onclick=e=>{e.stopPropagation();if(img.src)openViewer(img.src);};});
   el.querySelectorAll(".memo-card").forEach(c=>{c.onclick=e=>{if(e.target.closest(".memo-del")||e.target.closest(".memo-media"))return;openMemo(state.memos.find(x=>x.id===c.dataset.id));};});
   el.querySelectorAll(".memo-del").forEach(b=>b.onclick=e=>{e.stopPropagation();delMemo(b.dataset.del);});
+  const sb=document.getElementById("secBar");if(sb)sb.onclick=unlockSecret;
 }
 async function openMemo(m){
   editMemoId=m?m.id:null;
