@@ -326,8 +326,13 @@
 </div>
 
 <div class="wrap view" id="ledgerView">
-  <div class="sec-head" style="margin-top:6px">
-    <div class="sec-title">💳 가계부 <small id="ledgerMonthLbl"></small></div>
+  <div class="cal-head" style="margin-top:6px">
+    <div class="sec-title">💳 가계부</div>
+    <div class="cal-nav">
+      <button id="ledPrevM">‹</button>
+      <span class="cal-month" id="ledMonthLbl" style="min-width:96px;font-size:15px"></span>
+      <button id="ledNextM">›</button>
+    </div>
   </div>
   <label class="fld">📩 결제 문자 붙여넣기 <small style="color:var(--muted);font-weight:400">→ 카드·금액·가맹점 자동 인식</small></label>
   <textarea class="led-sms" id="ledSms" placeholder="카드 결제 문자를 그대로 붙여넣고 [인식] 버튼을 누르세요.&#10;예: [Web발신] 신한카드 승인 12,500원 일시불 06/13 14:30 스타벅스"></textarea>
@@ -335,8 +340,8 @@
     <button type="button" id="ledParseBtn" style="flex:1">📩 문자 인식해서 추가</button>
   </div>
   <div class="led-sum">
-    <div class="card over"><div class="num" id="ledSumExp">0</div><div class="lbl">이번 달 지출</div></div>
-    <div class="card done"><div class="num" id="ledSumInc">0</div><div class="lbl">이번 달 수입</div></div>
+    <div class="card over"><div class="num" id="ledSumExp">0</div><div class="lbl">지출</div></div>
+    <div class="card done"><div class="num" id="ledSumInc">0</div><div class="lbl">수입</div></div>
   </div>
   <div class="led-cards" id="ledCatFilter"></div>
   <div class="led-cards" id="ledCardFilter"></div>
@@ -557,7 +562,7 @@ let curTab="cal",editMemoId=null,curMemoPhotos=[],curMemoAudio=null,mediaRec=nul
 let speechRec=null,curTranscript="";
 let curSubs=[];
 let curPhotos=[]; // photos being edited in diary sheet
-let editLedId=null,curLedType="expense",ledFilter="all",curLedCat="etc",ledCatFilter="all";
+let editLedId=null,curLedType="expense",ledFilter="all",curLedCat="etc",ledCatFilter="all",ledgerMonth=null;
 const LED_CATS={
   food:{name:"식비",icon:"🍔",color:"#f97316"},
   cafe:{name:"카페·간식",icon:"☕",color:"#d97706"},
@@ -1057,9 +1062,17 @@ function parseCardSms(t){
   const cat=type==="income"?(/취소|환불/.test(t)?"income_refund":"income_etc"):(guessCat(t)||"etc");
   return {card,amount,date,type,merchant,cat,installment,raw:t};
 }
+function shiftLedMonth(n){
+  const base=ledgerMonth||`${new Date().getFullYear()}-${pad(new Date().getMonth()+1)}`;
+  const [y,m]=base.split("-").map(Number);
+  const d=new Date(y,m-1+n,1);
+  ledgerMonth=d.getFullYear()+"-"+pad(d.getMonth()+1);
+  renderLedger();
+}
 function renderLedger(){
-  const now=new Date();const mP=`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
-  document.getElementById("ledgerMonthLbl").textContent=(now.getMonth()+1)+"월";
+  const now=new Date();
+  const mP=ledgerMonth||`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
+  document.getElementById("ledMonthLbl").textContent=mP.slice(0,4)+"년 "+(+mP.slice(5,7))+"월";
   const all=(state.ledger||[]).slice().sort((a,b)=>a.date!==b.date?b.date.localeCompare(a.date):(b.createdAt||0)-(a.createdAt||0));
   const month=all.filter(x=>x.date&&x.date.indexOf(mP)===0);
   const exp=month.filter(x=>x.type!=="income").reduce((s,x)=>s+(+x.amount||0),0);
@@ -1079,11 +1092,11 @@ function renderLedger(){
     .concat(cards.map(c=>`<div class="led-chip ${ledFilter===c?'active':''}" data-c="${esc(c)}"><span class="cdot" style="background:${cardColor(c)}"></span>${esc(c)}</div>`));
   document.getElementById("ledCardFilter").innerHTML=chips.join("");
   document.getElementById("ledCardFilter").querySelectorAll(".led-chip").forEach(el=>el.onclick=()=>{ledFilter=el.dataset.c;renderLedger();});
-  let rows=all;
+  let rows=month;
   if(ledFilter!=="all")rows=rows.filter(x=>x.card===ledFilter);
   if(ledCatFilter!=="all")rows=rows.filter(x=>(x.cat||"")===ledCatFilter);
   const el=document.getElementById("ledgerList");
-  if(!rows.length){el.innerHTML=`<div class="empty"><span class="em">💳</span>내역이 없어요.<br>결제 문자를 붙여넣거나 + 로 추가하세요.</div>`;return;}
+  if(!rows.length){el.innerHTML=`<div class="empty"><span class="em">💳</span>이 달엔 내역이 없어요.<br>‹ › 로 다른 달을 보거나, 문자 붙여넣기 / + 로 추가하세요.</div>`;return;}
   let html="",lastDate="";
   rows.forEach(x=>{
     if(x.date!==lastDate){lastDate=x.date;html+=`<div class="led-daygrp">${fmtKDate(x.date)}</div>`;}
@@ -1932,6 +1945,8 @@ function init(){
   document.getElementById("tabLedger").onclick=()=>switchTab("ledger");
   document.getElementById("tabMemo").onclick=()=>switchTab("memo");
   document.getElementById("ledParseBtn").onclick=parseAndAddSms;
+  document.getElementById("ledPrevM").onclick=()=>shiftLedMonth(-1);
+  document.getElementById("ledNextM").onclick=()=>shiftLedMonth(1);
   document.getElementById("ledSave").onclick=saveLedger;
   document.getElementById("ledTypeSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>setLedType(b.dataset.t));
   document.getElementById("mSave").onclick=saveMemo;
