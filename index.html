@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+<!--APPVER:v2026-06-17d-->
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -656,6 +657,22 @@
 </div>
 
 <script>
+/* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
+const APP_VERSION="v2026-06-17d";
+(function checkAppUpdate(){
+  try{
+    fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
+      const m=html.match(/<!--APPVER:([^>]+?)-->/);
+      if(m&&m[1]&&m[1]!==APP_VERSION){
+        const k="upd_"+m[1];
+        if(!sessionStorage.getItem(k)){
+          sessionStorage.setItem(k,"1");
+          location.replace(location.pathname+"?v="+encodeURIComponent(m[1]));
+        }
+      }
+    }).catch(function(){});
+  }catch(e){}
+})();
 const CATS={
   work:{name:"업무",color:"var(--c-work)",hex:"#6366f1"},
   personal:{name:"개인",color:"var(--c-personal)",hex:"#22c55e"},
