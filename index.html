@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-06-17j-->
+<!--APPVER:v2026-06-17k-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -449,6 +449,15 @@
     <div class="cat-pick" id="catPick"></div>
     <label class="fld">날짜</label>
     <input type="date" id="fDate">
+    <label class="fld" style="display:flex;align-items:center;gap:8px;margin-top:8px"><input type="checkbox" id="fLunar" style="width:18px;height:18px;flex:0 0 auto"> 🌙 음력으로 입력 (생일·기일 — 매년 음력 반복)</label>
+    <div id="fLunarBox" style="display:none">
+      <div class="row2">
+        <div><label class="fld">음력 월</label><select id="fLunarM"></select></div>
+        <div><label class="fld">음력 일</label><select id="fLunarD"></select></div>
+      </div>
+      <label class="fld" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="fLunarLeap" style="width:18px;height:18px;flex:0 0 auto"> 윤달</label>
+      <div id="fLunarPreview" style="font-size:12px;color:var(--accent2);margin-top:2px"></div>
+    </div>
     <div class="row2">
       <div><label class="fld">시작 시간</label><select id="fTime"></select></div>
       <div><label class="fld">종료 시간</label><select id="fEndTime"></select></div>
@@ -661,7 +670,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-06-17j";
+const APP_VERSION="v2026-06-17k";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -756,6 +765,28 @@ function solar2lunar(y,m,d){
   if(offset<0){offset+=temp;--i;}
   return {year:year,month:i,day:offset+1,isLeap:isLeap};
 }
+function lunar2solar(y,m,d,isLeap){
+  if(y<1900||y>2100)return null;
+  let offset=0;
+  for(let i=1900;i<y;i++)offset+=lYearDays(i);
+  const leap=lLeapMonth(y);let found=false;
+  for(let mm=1;mm<=12;mm++){
+    if(mm===m&&!isLeap){found=true;break;}
+    offset+=lMonthDays(y,mm);
+    if(leap>0&&leap===mm){if(mm===m&&isLeap){found=true;break;}offset+=lLeapDays(y);}
+  }
+  if(!found)return null;
+  offset+=(d-1);
+  const dt=new Date(Date.UTC(1900,0,31)+offset*86400000);
+  return dt.getUTCFullYear()+"-"+pad(dt.getUTCMonth()+1)+"-"+pad(dt.getUTCDate());
+}
+// 음력 생일의 올해(지났으면 내년) 양력 날짜 — 저장·정렬용 대표 날짜
+function lunarNextSolar(lm,ld,leap){
+  const ty=new Date().getFullYear();
+  let s=lunar2solar(ty,lm,ld,leap)||lunar2solar(ty,lm,ld,false);
+  if(s&&s<todayStr()){const s2=lunar2solar(ty+1,lm,ld,leap)||lunar2solar(ty+1,lm,ld,false);if(s2)s=s2;}
+  return s||todayStr();
+}
 function lunarOf(dateStr){const d=parseYmd(dateStr);return solar2lunar(d.getFullYear(),d.getMonth()+1,d.getDate());}
 function lunarShort(dateStr){const l=lunarOf(dateStr);if(!l)return"";return (l.isLeap?"윤":"")+l.month+"."+l.day;}
 function lunarFull(dateStr){const l=lunarOf(dateStr);if(!l)return"";return "음력 "+(l.isLeap?"윤 ":"")+l.month+"월 "+l.day+"일";}
@@ -824,6 +855,11 @@ function fmtTime(t){if(!t)return"";const p=t.split(":");return timeLabel(parseIn
 /* recurring: does a task occur on date str? */
 function occursOn(t,dateStr){
   if(!t.date) return false;
+  if(t.lunar&&t.lmonth&&t.lday){               // 음력 반복(생일·기일): 그 날의 음력이 저장된 음력 월·일과 같으면 매년 표시
+    const d=parseYmd(dateStr);
+    const l=solar2lunar(d.getFullYear(),d.getMonth()+1,d.getDate());
+    return !!l&&l.month===t.lmonth&&l.day===t.lday&&(!l.isLeap===!t.lleap);
+  }
   if(t.rep==="none"||!t.rep) return t.date===dateStr;
   const start=parseYmd(t.date), d=parseYmd(dateStr);
   if(d<start) return false;
@@ -833,7 +869,7 @@ function occursOn(t,dateStr){
   if(t.rep==="yearly") return start.getMonth()===d.getMonth()&&start.getDate()===d.getDate();
   return false;
 }
-function doneKey(t,dateStr){return (t.rep&&t.rep!=="none")? t.id+"|"+dateStr : t.id;}
+function doneKey(t,dateStr){return (t.lunar||(t.rep&&t.rep!=="none"))? t.id+"|"+dateStr : t.id;}
 function isDone(t,dateStr){return !!state.done[doneKey(t,dateStr)];}
 function toggleDone(t,dateStr){const k=doneKey(t,dateStr);if(state.done[k])delete state.done[k];else state.done[k]=true;save();}
 
@@ -921,7 +957,7 @@ function renderList(){
       else if(dd<0)ddBadge=`<span class="badge dday over">D+${-dd}</span>`;
       else ddBadge=`<span class="badge dday">D-${dd}</span>`;
     }
-    const repName={daily:"매일",weekly:"매주",monthly:"매월",yearly:"매년"}[t.rep];
+    const repName=t.lunar?`매년 음력 ${t.lleap?"윤":""}${t.lmonth}.${t.lday}`:{daily:"매일",weekly:"매주",monthly:"매월",yearly:"매년"}[t.rep];
     const subs=t.subs||[];
     const subDone=subs.filter(s=>s.done).length;
     const progBadge=subs.length?`<span class="badge prog">✓ ${subDone}/${subs.length}</span>`:"";
@@ -1794,6 +1830,11 @@ function openAdd(){
   document.getElementById("fPrio").checked=false;
   curSubs=[];renderSubsEdit();
   setRep("none");renderCatPick();
+  fillLunarOptions();
+  const lt=solar2lunar(parseYmd(selDate).getFullYear(),parseYmd(selDate).getMonth()+1,parseYmd(selDate).getDate());
+  if(lt){document.getElementById("fLunarM").value=lt.month;document.getElementById("fLunarD").value=lt.day;}
+  document.getElementById("fLunarLeap").checked=false;
+  setLunarMode(false);
   openOverlay("sheet");
   setTimeout(()=>document.getElementById("fTitle").focus(),300);
 }
@@ -1809,6 +1850,9 @@ function openEdit(t){
   document.getElementById("fPrio").checked=!!t.prio;
   curSubs=(t.subs||[]).map(s=>({...s}));renderSubsEdit();
   setRep(curRep);renderCatPick();
+  fillLunarOptions();
+  if(t.lunar){document.getElementById("fLunarM").value=t.lmonth;document.getElementById("fLunarD").value=t.lday;document.getElementById("fLunarLeap").checked=!!t.lleap;setLunarMode(true);}
+  else{const lt=t.date?solar2lunar(parseYmd(t.date).getFullYear(),parseYmd(t.date).getMonth()+1,parseYmd(t.date).getDate()):null;if(lt){document.getElementById("fLunarM").value=lt.month;document.getElementById("fLunarD").value=lt.day;}document.getElementById("fLunarLeap").checked=false;setLunarMode(false);}
   openOverlay("sheet");
 }
 function renderCatPick(){
@@ -1817,6 +1861,26 @@ function renderCatPick(){
   document.querySelectorAll(".cat-opt").forEach(el=>el.onclick=()=>{curCat=el.dataset.c;renderCatPick();});
 }
 function setRep(r){curRep=r;document.querySelectorAll("#repSeg button").forEach(b=>b.classList.toggle("on",b.dataset.r===r));}
+function fillLunarOptions(){
+  const ms=document.getElementById("fLunarM"),ds=document.getElementById("fLunarD");
+  if(ms&&!ms.options.length)for(let i=1;i<=12;i++)ms.add(new Option(i+"월",i));
+  if(ds&&!ds.options.length)for(let i=1;i<=30;i++)ds.add(new Option(i+"일",i));
+}
+function setLunarMode(on){
+  document.getElementById("fLunar").checked=on;
+  document.getElementById("fLunarBox").style.display=on?"block":"none";
+  document.getElementById("fDate").style.display=on?"none":"";
+  const seg=document.getElementById("repSeg");if(seg)seg.style.display=on?"none":"";   // 음력=자동 매년이라 반복 숨김
+  const repLbl=document.getElementById("repSeg")?document.getElementById("repSeg").previousElementSibling:null;
+  if(repLbl&&repLbl.classList.contains("fld"))repLbl.style.display=on?"none":"";
+  if(on)updateLunarPreview();
+}
+function updateLunarPreview(){
+  const lm=+document.getElementById("fLunarM").value,ld=+document.getElementById("fLunarD").value,leap=document.getElementById("fLunarLeap").checked;
+  const s=lunarNextSolar(lm,ld,leap),el=document.getElementById("fLunarPreview");
+  if(s){const d=parseYmd(s),w=["일","월","화","수","목","금","토"][d.getDay()];el.textContent=`→ 다음 양력 ${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}(${w}) · 매년 음력 ${leap?"윤 ":""}${lm}월 ${ld}일에 자동 표시`;}
+  else el.textContent="이 음력 날짜는 해당 연도에 없어요(윤달 확인)";
+}
 function renderSubsEdit(){
   const el=document.getElementById("fSubList");
   el.innerHTML=curSubs.map((s,i)=>`<div class="sub-row ${s.done?'done':''}"><span class="sx ${s.done?'on':''}" data-ti="${i}">${s.done?'✓':''}</span><span class="stext">${esc(s.text)}</span><button type="button" class="rm" data-ri="${i}">✕</button></div>`).join("");
@@ -2018,15 +2082,25 @@ function saveTask(){
   const loc=document.getElementById("fLoc").value.trim();
   const remind=document.getElementById("fRemind").value;
   const prio=document.getElementById("fPrio").checked;
+  // 음력 입력 처리(생일·기일): 양력으로 변환해 저장 + 음력 월·일 보관(매년 음력 반복)
+  const isLunar=document.getElementById("fLunar").checked;
+  let lunar=false,lmonth=null,lday=null,lleap=false,fdate=date,frep=curRep;
+  if(isLunar){
+    lmonth=+document.getElementById("fLunarM").value;lday=+document.getElementById("fLunarD").value;lleap=document.getElementById("fLunarLeap").checked;
+    const s=lunarNextSolar(lmonth,lday,lleap);
+    if(!s){toast("음력 날짜를 확인해주세요(윤달 여부 등)");return;}
+    lunar=true;fdate=s;frep="none";   // 매년 반복은 음력 매칭으로 로컬 처리
+  }
+  // 음력 일정은 구글이 음력 반복을 못 다루므로 로컬 전용(gsync:local)으로 유지
+  const lunarFields=lunar?{lunar:true,lmonth,lday,lleap,gsync:"local"}:{lunar:false,lmonth:null,lday:null,lleap:false};
   if(editId){
     const t=state.tasks.find(x=>x.id===editId);
-    // 알림 설정이 바뀌면 이 일정의 발사기록 초기화(다시 알리도록)
     if(t.remind!==remind&&state.notified){Object.keys(state.notified).forEach(k=>{if(k.indexOf(t.id+"|")===0)delete state.notified[k];});}
-    Object.assign(t,{title,date,time,endTime,loc,remind,prio,cat:curCat,rep:curRep,subs:curSubs.map(s=>({...s})),gsync:"pending"});
+    Object.assign(t,{title,date:fdate,time,endTime,loc,remind,prio,cat:curCat,rep:frep,subs:curSubs.map(s=>({...s})),gsync:"pending"},lunarFields);
   }else{
-    state.tasks.push({id:Date.now()+""+Math.floor(Math.random()*999),title,date,time,endTime,loc,remind,prio,cat:curCat,rep:curRep,subs:curSubs.map(s=>({...s})),gsync:"pending"});
+    state.tasks.push(Object.assign({id:Date.now()+""+Math.floor(Math.random()*999),title,date:fdate,time,endTime,loc,remind,prio,cat:curCat,rep:frep,subs:curSubs.map(s=>({...s})),gsync:"pending"},lunarFields));
   }
-  save();closeSheet();selDate=date;renderAll();toast(editId?"수정했어요":"추가했어요");scheduleSync();
+  save();closeSheet();selDate=fdate;renderAll();toast(editId?"수정했어요":"추가했어요");scheduleSync();
   if(remind&&remind!=="none")ensureNotifyPermission();
   setTimeout(checkReminders,400);
 }
@@ -2373,6 +2447,11 @@ function init(){
     else openAdd();
   };
   document.getElementById("saveBtn").onclick=saveTask;
+  fillLunarOptions();
+  document.getElementById("fLunar").onchange=e=>setLunarMode(e.target.checked);
+  document.getElementById("fLunarM").onchange=updateLunarPreview;
+  document.getElementById("fLunarD").onchange=updateLunarPreview;
+  document.getElementById("fLunarLeap").onchange=updateLunarPreview;
   document.getElementById("tabCal").onclick=()=>switchTab("cal");
   document.getElementById("tabDiary").onclick=()=>switchTab("diary");
   document.getElementById("tabLedger").onclick=()=>switchTab("ledger");
