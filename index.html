@@ -279,6 +279,15 @@
   .ldsum-item span{font-size:11px;color:var(--muted)}
   .ldsum-item b{font-size:15px}
   .ledday-list{max-height:46vh;overflow-y:auto;margin-bottom:12px}
+  /* 가계부 섹션 접기/펼치기 */
+  .led-sec{margin-bottom:10px}
+  .led-sec-h{display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:11px 14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;user-select:none}
+  .led-sec-t{font-size:13px;font-weight:700}
+  .led-sec-sub{color:var(--muted);font-weight:400;font-size:11px}
+  .led-sec-arr{color:var(--muted);font-size:12px;transition:transform .2s}
+  .led-sec.collapsed .led-sec-arr{transform:rotate(-90deg)}
+  .led-sec-b{margin-top:8px}
+  .led-sec.collapsed .led-sec-b{display:none}
   /* 계좌 잔액 */
   .acct-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:12px}
   .acct-head{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:10px}
@@ -361,23 +370,50 @@
       <button id="ledNextM">›</button>
     </div>
   </div>
-  <div id="acctSection"></div>
-  <label class="fld">📩 결제 문자 붙여넣기 <small style="color:var(--muted);font-weight:400">→ 카드·금액·가맹점 자동 인식</small></label>
-  <textarea class="led-sms" id="ledSms" placeholder="카드 결제 문자를 그대로 붙여넣고 [인식] 버튼을 누르세요.&#10;예: [Web발신] 신한카드 승인 12,500원 일시불 06/13 14:30 스타벅스"></textarea>
-  <div class="sub-add" style="margin-top:8px">
-    <button type="button" id="ledParseBtn" style="flex:1">📩 문자 인식해서 추가</button>
+  <div class="led-sec" data-sec="accounts">
+    <div class="led-sec-h"><span class="led-sec-t">💰 계좌 / 카드 <small id="secAccountsTot" class="led-sec-sub"></small></span><span class="led-sec-arr">▾</span></div>
+    <div class="led-sec-b"><div id="acctSection"></div></div>
   </div>
-  <div class="led-sum">
-    <div class="card over"><div class="num" id="ledSumExp">0</div><div class="lbl">지출</div></div>
-    <div class="card done"><div class="num" id="ledSumInc">0</div><div class="lbl">수입</div></div>
+  <div class="led-sec" data-sec="sms">
+    <div class="led-sec-h"><span class="led-sec-t">📩 결제 문자 입력</span><span class="led-sec-arr">▾</span></div>
+    <div class="led-sec-b">
+      <small style="color:var(--muted)">카드·금액·가맹점 자동 인식</small>
+      <textarea class="led-sms" id="ledSms" style="margin-top:6px" placeholder="카드 결제 문자를 그대로 붙여넣고 [인식] 버튼을 누르세요.&#10;예: [Web발신] 신한카드 승인 12,500원 일시불 06/13 14:30 스타벅스"></textarea>
+      <div class="sub-add" style="margin-top:8px">
+        <button type="button" id="ledParseBtn" style="flex:1">📩 문자 인식해서 추가</button>
+      </div>
+    </div>
   </div>
-  <div id="ledCompare"></div>
-  <div id="ledCalendar"></div>
-  <div id="ledChart"></div>
-  <div id="ledCardChart"></div>
-  <div class="led-cards" id="ledCatFilter"></div>
-  <div class="led-cards" id="ledCardFilter"></div>
-  <div id="ledgerList"></div>
+  <div class="led-sec" data-sec="summary">
+    <div class="led-sec-h"><span class="led-sec-t">📊 이번 달 요약</span><span class="led-sec-arr">▾</span></div>
+    <div class="led-sec-b">
+      <div class="led-sum">
+        <div class="card over"><div class="num" id="ledSumExp">0</div><div class="lbl">지출</div></div>
+        <div class="card done"><div class="num" id="ledSumInc">0</div><div class="lbl">수입</div></div>
+      </div>
+      <div id="ledCompare"></div>
+    </div>
+  </div>
+  <div class="led-sec" data-sec="calendar">
+    <div class="led-sec-h"><span class="led-sec-t">📅 달력</span><span class="led-sec-arr">▾</span></div>
+    <div class="led-sec-b"><div id="ledCalendar"></div></div>
+  </div>
+  <div class="led-sec" data-sec="catchart">
+    <div class="led-sec-h"><span class="led-sec-t">📊 카테고리별 지출</span><span class="led-sec-arr">▾</span></div>
+    <div class="led-sec-b"><div id="ledChart"></div></div>
+  </div>
+  <div class="led-sec" data-sec="cardchart">
+    <div class="led-sec-h"><span class="led-sec-t">💳 카드/은행별 사용 <small class="led-sec-sub">· 탭하면 해당 내역만</small></span><span class="led-sec-arr">▾</span></div>
+    <div class="led-sec-b"><div id="ledCardChart"></div></div>
+  </div>
+  <div class="led-sec" data-sec="list">
+    <div class="led-sec-h"><span class="led-sec-t">📋 내역</span><span class="led-sec-arr">▾</span></div>
+    <div class="led-sec-b">
+      <div class="led-cards" id="ledCatFilter"></div>
+      <div class="led-cards" id="ledCardFilter"></div>
+      <div id="ledgerList"></div>
+    </div>
+  </div>
 </div>
 
 <div class="wrap view" id="memoView">
@@ -732,7 +768,7 @@ async function migratePhotos(){
 }
 
 /* ---------- storage ---------- */
-function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){state=d;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.accounts=state.accounts||[];state.assetHistory=state.assetHistory||[];state.notified=state.notified||{};}}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){state=d;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.accounts=state.accounts||[];state.assetHistory=state.assetHistory||[];state.notified=state.notified||{};state.ledgerCollapse=state.ledgerCollapse||{};}}catch(e){}}
 function save(){state._savedAt=Date.now();localStorage.setItem(KEY,JSON.stringify(state));if(typeof scheduleBackup==="function")scheduleBackup();}
 
 /* ---------- overlay open/close + 모바일 뒤로가기 ---------- */
@@ -1285,7 +1321,8 @@ function renderAccounts(){
   const accts=state.accounts||[];
   const total=accts.filter(a=>acctKind(a)!=="credit").reduce((s,a)=>s+(+a.balance||0),0);
   const creditUse=accts.filter(a=>acctKind(a)==="credit").reduce((s,a)=>s+(+a.balance||0),0);
-  el.innerHTML=`<div class="acct-card"><div class="acct-head"><span>💰 계좌 / 카드</span><span class="acct-total">잔액 ${wonFmt(total)}원</span></div>`+
+  const totEl=document.getElementById("secAccountsTot");if(totEl)totEl.textContent="· 잔액 "+wonFmt(total)+"원";
+  el.innerHTML=`<div class="acct-card">`+
     (accts.length?accts.map(a=>{const k=acctKind(a),m=ACCT_KINDS[k]||ACCT_KINDS.bank,credit=k==="credit";return `<div class="acct-row" data-id="${a.id}"><span>${m.icon} ${esc(a.name||"계좌")}${credit?'<span style="color:var(--muted);font-size:11px"> · 신용</span>':k==="check"?'<span style="color:var(--muted);font-size:11px"> · 체크</span>':''}</span><b style="${credit?'color:var(--red)':''}">${credit?"사용 ":""}${wonFmt(+a.balance||0)}원</b></div>`;}).join(""):`<div class="acct-empty">등록된 계좌·카드가 없어요. 아래로 추가하세요.</div>`)+
     (creditUse?`<div style="font-size:11px;color:var(--muted);text-align:right;margin-top:6px">💳 신용카드 사용 합계 <b style="color:var(--red)">${wonFmt(creditUse)}원</b> · 자산 미포함</div>`:"")+
     `<button class="acct-add" id="acctAdd">+ 계좌·카드 추가</button>`+assetTrendSVG()+`</div>`;
@@ -1325,6 +1362,16 @@ function deleteAccount(){
   state.accounts=(state.accounts||[]).filter(x=>x.id!==editAcctId);
   recordAssetSnapshot();save();closeOverlay("acctSheet");renderAccounts();toast("삭제했어요");
 }
+/* 가계부 섹션 접기/펼치기 토글 */
+function applyLedCollapse(){
+  const c=state.ledgerCollapse||{};
+  document.querySelectorAll("#ledgerView .led-sec").forEach(s=>s.classList.toggle("collapsed",!!c[s.dataset.sec]));
+}
+function toggleLedSec(key){
+  state.ledgerCollapse=state.ledgerCollapse||{};
+  state.ledgerCollapse[key]=!state.ledgerCollapse[key];
+  save();applyLedCollapse();
+}
 function renderLedger(){
   const now=new Date();
   const mP=ledgerMonth||`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
@@ -1352,7 +1399,7 @@ function renderLedger(){
   const chartEl=document.getElementById("ledChart");
   if(!catEntries.length){chartEl.innerHTML="";}
   else{
-    chartEl.innerHTML=`<div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:10px">📊 카테고리별 지출</div>`+catEntries.map(([k,v])=>{
+    chartEl.innerHTML=`<div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px">`+catEntries.map(([k,v])=>{
       const c=LED_CATS[k]||{name:k,icon:"💳",color:"#94a3b8"};
       const pct=totExp?Math.round(v/totExp*100):0;
       return `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>${c.icon} ${esc(c.name)}</span><span style="color:var(--muted)">${wonFmt(v)}원 · ${pct}%</span></div><div style="height:8px;background:var(--surface2);border-radius:5px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${c.color};border-radius:5px"></div></div></div>`;
@@ -1366,7 +1413,7 @@ function renderLedger(){
   const cardChartEl=document.getElementById("ledCardChart");
   if(!cardEntries.length){cardChartEl.innerHTML="";}
   else{
-    cardChartEl.innerHTML=`<div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:10px">💳 카드/은행별 사용 <small style="color:var(--muted);font-weight:400">· 탭하면 해당 내역만</small></div>`+cardEntries.map(([k,o])=>{
+    cardChartEl.innerHTML=`<div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px">`+cardEntries.map(([k,o])=>{
       const col=k==="(미지정)"?"#94a3b8":cardColor(k);
       const pct=totCard?Math.round(o.sum/totCard*100):0;
       const active=ledFilter===k;
@@ -2288,6 +2335,8 @@ function init(){
   document.getElementById("tabLedger").onclick=()=>switchTab("ledger");
   document.getElementById("tabMemo").onclick=()=>switchTab("memo");
   document.getElementById("ledParseBtn").onclick=parseAndAddSms;
+  document.querySelectorAll("#ledgerView .led-sec-h").forEach(h=>h.onclick=()=>toggleLedSec(h.parentElement.dataset.sec));
+  applyLedCollapse();
   document.getElementById("ledPrevM").onclick=()=>shiftLedMonth(-1);
   document.getElementById("ledNextM").onclick=()=>shiftLedMonth(1);
   document.getElementById("acctSave").onclick=saveAccount;
