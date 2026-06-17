@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-06-17m-->
+<!--APPVER:v2026-06-17n-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -425,6 +425,7 @@
   <div class="sec-head" style="margin-top:6px">
     <div class="sec-title">📝 메모 <small id="memoSub"></small></div>
   </div>
+  <div class="filter-row" id="memoFilter"></div>
   <div id="memoList"></div>
 </div>
 
@@ -567,6 +568,8 @@
   <div class="sheet">
     <div class="grab"></div>
     <h3 id="memoSheetTitle">새 메모</h3>
+    <label class="fld">분류</label>
+    <div class="cat-pick" id="memoCatPick"></div>
     <textarea id="mText" rows="5" placeholder="메모를 입력하세요"></textarea>
     <label class="fld">📸 사진</label>
     <div class="photo-grid" id="memoPhotoGrid"></div>
@@ -674,7 +677,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-06-17m";
+const APP_VERSION="v2026-06-17n";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -724,6 +727,8 @@ const APP_VER="2026.06.15-백업진단";
 let state={tasks:[],done:{},diary:{},ledger:[],accounts:[],assetHistory:[],notified:{}}; // diary: {"YYYY-MM-DD":{text,photos:[]}}; ledger:[{id,date,amount,card,merchant,memo,type,raw,createdAt}]; notified: {"taskId|date":ts}
 let viewY,viewM,selDate,editId=null,curRep="none",curCat="work",filter="all";
 let curTab="cal",editMemoId=null,curMemoPhotos=[],curMemoAudio=null,mediaRec=null,recChunks=[],recStream=null;
+let curMemoCat="etc",memoFilter="all";
+const MEMO_CATS={work:{name:"업무",icon:"💼",hex:"#6366f1"},personal:{name:"개인",icon:"🙂",hex:"#22c55e"},secret:{name:"시크릿",icon:"🔒",hex:"#ef4444"},etc:{name:"기타",icon:"📝",hex:"#06b6d4"}};
 let speechRec=null,curTranscript="";
 let curSubs=[];
 let curPhotos=[]; // photos being edited in diary sheet
@@ -959,7 +964,7 @@ function renderFilters(){
   const cats=Object.entries(CATS).map(([k,c])=>
     `<div class="chip ${filter===k?'active':''}" data-f="${k}"><span class="swatch" style="background:${c.hex}"></span>${c.name}</div>`).join("");
   document.getElementById("filterRow").innerHTML=all+cats;
-  document.querySelectorAll(".chip").forEach(el=>el.onclick=()=>{filter=el.dataset.f;renderFilters();renderList();});
+  document.getElementById("filterRow").querySelectorAll(".chip").forEach(el=>el.onclick=()=>{filter=el.dataset.f;renderFilters();renderList();});
 }
 function renderList(){
   document.getElementById("listTitle").innerHTML=`${fmtKDate(selDate)} <small class="lun-tag">${lunarFull(selDate)}</small>${holidayOf(selDate)?` <small style="color:#ef4444;font-weight:700">🎌 ${esc(holidayOf(selDate))}</small>`:""} <small id="listSub"></small>`;
@@ -1680,23 +1685,38 @@ function switchTab(tab){
   window.scrollTo(0,0);
 }
 function fmtMemoDate(ts){const d=new Date(ts);const w=["일","월","화","수","목","금","토"][d.getDay()];return `${d.getMonth()+1}/${d.getDate()}(${w}) ${pad(d.getHours())}:${pad(d.getMinutes())}`;}
+function renderMemoCatPick(){
+  const el=document.getElementById("memoCatPick");if(!el)return;
+  el.innerHTML=Object.entries(MEMO_CATS).map(([k,c])=>`<div class="cat-opt ${curMemoCat===k?'sel':''}" data-c="${k}"><span class="sw" style="background:${c.hex}"></span>${c.icon} ${c.name}</div>`).join("");
+  el.querySelectorAll(".cat-opt").forEach(o=>o.onclick=()=>{curMemoCat=o.dataset.c;renderMemoCatPick();});
+}
+function renderMemoFilter(){
+  const el=document.getElementById("memoFilter");if(!el)return;
+  const all=`<div class="chip ${memoFilter==='all'?'active':''}" data-mf="all">전체</div>`;
+  const cats=Object.entries(MEMO_CATS).map(([k,c])=>`<div class="chip ${memoFilter===k?'active':''}" data-mf="${k}"><span class="swatch" style="background:${c.hex}"></span>${c.icon} ${c.name}</div>`).join("");
+  el.innerHTML=all+cats;
+  el.querySelectorAll(".chip").forEach(x=>x.onclick=()=>{memoFilter=x.dataset.mf;renderMemoFilter();renderMemos();});
+}
 function renderMemos(){
+  renderMemoFilter();
   const el=document.getElementById("memoList");
-  const memos=(state.memos||[]).slice().sort((a,b)=>{
+  let memos=(state.memos||[]).slice().sort((a,b)=>{
     if(!!b.pin!==!!a.pin)return b.pin?1:-1;
     return (b.createdAt||0)-(a.createdAt||0);
   });
+  if(memoFilter!=="all")memos=memos.filter(m=>(m.cat||"etc")===memoFilter);
   const sub=document.getElementById("memoSub");
   if(sub)sub.textContent=memos.length?memos.length+"개":"";
-  if(!memos.length){el.innerHTML=`<div class="empty"><span class="em">📝</span>메모가 없어요.<br>+ 버튼으로 추가해보세요.</div>`;return;}
+  if(!memos.length){el.innerHTML=`<div class="empty"><span class="em">📝</span>${memoFilter==="all"?"메모가 없어요.<br>+ 버튼으로 추가해보세요.":"이 분류의 메모가 없어요."}</div>`;return;}
   el.innerHTML=memos.map(m=>{
     const photos=(m.photos||[]).slice(0,4);
     const media=(photos.length||m.audio)?`<div class="memo-media">${photos.map(id=>`<img data-pid="${id}">`).join("")}${m.audio?'<span class="memo-audio-tag">🎙 음성</span>':""}</div>`:"";
+    const mc=MEMO_CATS[m.cat]||MEMO_CATS.etc;
     return `<div class="memo-card ${m.pin?'pin':''}" data-id="${m.id}">
       ${m.pin?'<span class="memo-pinmark">📌</span>':''}
       ${m.text?`<div class="memo-text">${esc(m.text)}</div>`:""}
       ${media}
-      <div class="memo-meta"><span>${fmtMemoDate(m.createdAt)}</span><button class="memo-del" data-del="${m.id}">✕</button></div>
+      <div class="memo-meta"><span><span class="memo-cattag" style="color:${mc.hex}">${mc.icon} ${mc.name}</span> · ${fmtMemoDate(m.createdAt)}</span><button class="memo-del" data-del="${m.id}">✕</button></div>
     </div>`;
   }).join("");
   el.querySelectorAll(".memo-media img[data-pid]").forEach(img=>{idbGet(img.dataset.pid).then(d=>{if(d)img.src=d;});img.onclick=e=>{e.stopPropagation();if(img.src)openViewer(img.src);};});
@@ -1708,6 +1728,7 @@ async function openMemo(m){
   document.getElementById("memoSheetTitle").textContent=m?"메모 수정":"새 메모";
   document.getElementById("mText").value=m?m.text:"";
   document.getElementById("mPin").checked=m?!!m.pin:false;
+  curMemoCat=(m&&m.cat)||"etc";renderMemoCatPick();
   curMemoPhotos=[];curMemoAudio=null;
   if(m){
     for(const id of (m.photos||[])){const data=await idbGet(id);if(data)curMemoPhotos.push({id,data});}
@@ -1829,9 +1850,9 @@ async function saveMemo(){
   if(oldAudio&&oldAudio!==audioId)idbDel(oldAudio);
   if(editMemoId){
     const m=state.memos.find(x=>x.id===editMemoId);
-    if(m){m.text=text;m.pin=pin;m.photos=photoIds;m.audio=audioId;m.updatedAt=Date.now();}
+    if(m){m.text=text;m.pin=pin;m.cat=curMemoCat;m.photos=photoIds;m.audio=audioId;m.updatedAt=Date.now();}
   }else{
-    state.memos.push({id:Date.now()+""+Math.floor(Math.random()*999),text,pin,photos:photoIds,audio:audioId,createdAt:Date.now()});
+    state.memos.push({id:Date.now()+""+Math.floor(Math.random()*999),text,pin,cat:curMemoCat,photos:photoIds,audio:audioId,createdAt:Date.now()});
   }
   save();closeOverlay("memoSheet");renderMemos();toast(editMemoId?"수정했어요":"메모 저장");
 }
