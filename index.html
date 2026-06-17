@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-06-17l-->
+<!--APPVER:v2026-06-17m-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -13,6 +13,7 @@
 <meta name="theme-color" content="#ffffff">
 <title>마이 플래너</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+<link rel="manifest" href="manifest.json">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
@@ -673,7 +674,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-06-17l";
+const APP_VERSION="v2026-06-17m";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -2451,6 +2452,22 @@ function updateSyncUI(stateName){
 }
 
 /* ---------- init ---------- */
+/* 공유로 받기 — 카톡/문자 결제내용을 공유하면 가계부에 자동 파싱 (Web Share Target / iOS 단축어 ?addtx=) */
+function handleSharedText(){
+  try{
+    const p=new URLSearchParams(location.search);
+    let txt=p.get("text")||p.get("addtx")||"";
+    const title=p.get("title")||"";
+    if(title&&txt.indexOf(title)<0)txt=(title+" "+txt).trim();
+    txt=(txt||"").trim();
+    if(!txt)return;
+    history.replaceState({},"",location.pathname);   // 새로고침 시 중복 방지
+    const r=parseCardSms(txt);
+    switchTab("ledger");
+    openLedgerAdd(r);
+    toast("공유된 결제 내용을 인식했어요 — 확인 후 저장하세요");
+  }catch(e){}
+}
 function init(){
   load();
   migratePhotos().then(()=>renderDiary());   // 기존 base64 사진을 IndexedDB로 1회 이전 후 갱신
@@ -2586,6 +2603,7 @@ function init(){
       sheet.appendChild(b);
     }
   });
+  handleSharedText();   // 공유로 들어온 결제내용 처리
 }
 init();
 </script>
