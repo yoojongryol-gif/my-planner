@@ -273,6 +273,14 @@
   .lcd-exp{font-size:9px;color:var(--red);line-height:1.25;white-space:nowrap;font-weight:600}
   .lcd-inc{font-size:9px;color:var(--green);line-height:1.25;white-space:nowrap;font-weight:600}
   .lcday.sel .lcd-exp,.lcday.sel .lcd-inc{color:#fff}
+  /* 계좌 잔액 */
+  .acct-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:12px}
+  .acct-head{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:10px}
+  .acct-total{color:var(--accent2)}
+  .acct-row{display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:var(--surface2);border-radius:10px;margin-bottom:6px;cursor:pointer;font-size:13px}
+  .acct-row b{font-weight:800}
+  .acct-empty{font-size:12px;color:var(--muted);padding:4px 2px 8px}
+  .acct-add{width:100%;background:var(--surface2);border:1px dashed var(--line);color:var(--accent2);border-radius:10px;padding:9px;font-size:13px;font-weight:600;cursor:pointer}
 </style>
 </head>
 <body>
@@ -347,6 +355,7 @@
       <button id="ledNextM">›</button>
     </div>
   </div>
+  <div id="acctSection"></div>
   <label class="fld">📩 결제 문자 붙여넣기 <small style="color:var(--muted);font-weight:400">→ 카드·금액·가맹점 자동 인식</small></label>
   <textarea class="led-sms" id="ledSms" placeholder="카드 결제 문자를 그대로 붙여넣고 [인식] 버튼을 누르세요.&#10;예: [Web발신] 신한카드 승인 12,500원 일시불 06/13 14:30 스타벅스"></textarea>
   <div class="sub-add" style="margin-top:8px">
@@ -559,6 +568,19 @@
   </div>
 </div>
 
+<div class="overlay" id="acctSheet">
+  <div class="sheet">
+    <div class="grab"></div>
+    <h3 id="acctSheetTitle">계좌 추가</h3>
+    <label class="fld">계좌명 / 은행</label>
+    <input id="acctName" placeholder="예: 신한은행 주거래" autocomplete="off" maxlength="30">
+    <label class="fld">잔액 (원)</label>
+    <input id="acctBalance" type="number" inputmode="numeric" placeholder="0" autocomplete="off">
+    <button class="save-btn" id="acctSave">저장</button>
+    <button class="save-btn" id="acctDelete" style="background:transparent;border:1px solid var(--red);color:var(--red);margin-top:10px;display:none">이 계좌 삭제</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -571,7 +593,7 @@ const CATS={
 };
 const KEY="myPlanner.v1";
 const APP_VER="2026.06.15-백업진단";
-let state={tasks:[],done:{},diary:{},ledger:[],notified:{}}; // diary: {"YYYY-MM-DD":{text,photos:[]}}; ledger:[{id,date,amount,card,merchant,memo,type,raw,createdAt}]; notified: {"taskId|date":ts}
+let state={tasks:[],done:{},diary:{},ledger:[],accounts:[],notified:{}}; // diary: {"YYYY-MM-DD":{text,photos:[]}}; ledger:[{id,date,amount,card,merchant,memo,type,raw,createdAt}]; notified: {"taskId|date":ts}
 let viewY,viewM,selDate,editId=null,curRep="none",curCat="work",filter="all";
 let curTab="cal",editMemoId=null,curMemoPhotos=[],curMemoAudio=null,mediaRec=null,recChunks=[],recStream=null;
 let speechRec=null,curTranscript="";
@@ -674,7 +696,7 @@ async function migratePhotos(){
 }
 
 /* ---------- storage ---------- */
-function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){state=d;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.notified=state.notified||{};}}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){state=d;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.accounts=state.accounts||[];state.notified=state.notified||{};}}catch(e){}}
 function save(){state._savedAt=Date.now();localStorage.setItem(KEY,JSON.stringify(state));if(typeof scheduleBackup==="function")scheduleBackup();}
 
 /* ---------- overlay open/close + 모바일 뒤로가기 ---------- */
@@ -1104,6 +1126,41 @@ function renderLedCalendar(mP){
   el.innerHTML=html+`</div>`;
   el.querySelectorAll(".lcday[data-ds]").forEach(c=>c.onclick=()=>{ledDay=(ledDay===c.dataset.ds?null:c.dataset.ds);renderLedger();});
 }
+let editAcctId=null;
+function renderAccounts(){
+  const el=document.getElementById("acctSection");if(!el)return;
+  const accts=state.accounts||[];
+  const total=accts.reduce((s,a)=>s+(+a.balance||0),0);
+  el.innerHTML=`<div class="acct-card"><div class="acct-head"><span>💰 계좌 잔액</span><span class="acct-total">총 ${wonFmt(total)}원</span></div>`+
+    (accts.length?accts.map(a=>`<div class="acct-row" data-id="${a.id}"><span>${esc(a.name||"계좌")}</span><b>${wonFmt(+a.balance||0)}원</b></div>`).join(""):`<div class="acct-empty">등록된 계좌가 없어요. 아래로 추가하세요.</div>`)+
+    `<button class="acct-add" id="acctAdd">+ 계좌 추가</button></div>`;
+  el.querySelector("#acctAdd").onclick=()=>openAcctSheet(null);
+  el.querySelectorAll(".acct-row").forEach(r=>r.onclick=()=>openAcctSheet(r.dataset.id));
+}
+function openAcctSheet(id){
+  editAcctId=id;
+  const a=id?(state.accounts||[]).find(x=>x.id===id):null;
+  document.getElementById("acctSheetTitle").textContent=a?"계좌 수정":"계좌 추가";
+  document.getElementById("acctName").value=a?(a.name||""):"";
+  document.getElementById("acctBalance").value=a&&a.balance!=null?a.balance:"";
+  document.getElementById("acctDelete").style.display=a?"block":"none";
+  openOverlay("acctSheet");
+}
+function saveAccount(){
+  const name=document.getElementById("acctName").value.trim();
+  const balance=parseInt(document.getElementById("acctBalance").value,10)||0;
+  if(!name){toast("계좌명을 입력해주세요");return;}
+  state.accounts=state.accounts||[];
+  if(editAcctId){const a=state.accounts.find(x=>x.id===editAcctId);if(a)Object.assign(a,{name,balance,updatedAt:Date.now()});}
+  else state.accounts.push({id:Date.now()+""+Math.floor(Math.random()*999),name,balance,createdAt:Date.now()});
+  save();closeOverlay("acctSheet");renderAccounts();toast(editAcctId?"수정했어요":"계좌 추가 완료");
+}
+function deleteAccount(){
+  if(!editAcctId)return;
+  if(!confirm("이 계좌를 삭제할까요?"))return;
+  state.accounts=(state.accounts||[]).filter(x=>x.id!==editAcctId);
+  save();closeOverlay("acctSheet");renderAccounts();toast("삭제했어요");
+}
 function renderLedger(){
   const now=new Date();
   const mP=ledgerMonth||`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
@@ -1141,6 +1198,7 @@ function renderLedger(){
     .concat(cards.map(c=>`<div class="led-chip ${ledFilter===c?'active':''}" data-c="${esc(c)}"><span class="cdot" style="background:${cardColor(c)}"></span>${esc(c)}</div>`));
   document.getElementById("ledCardFilter").innerHTML=chips.join("");
   document.getElementById("ledCardFilter").querySelectorAll(".led-chip").forEach(el=>el.onclick=()=>{ledFilter=el.dataset.c;renderLedger();});
+  renderAccounts();
   renderLedCalendar(mP);
   let rows=month;
   if(ledDay)rows=rows.filter(x=>x.date===ledDay);
@@ -1880,7 +1938,7 @@ async function gDriveRestore(){
     if(!confirm(`구글 백업을 불러옵니다.\n일정 ${cnt} · 다이어리 ${dcnt} · 메모 ${mcnt} · 가계부 ${lcnt}건\n\n지금 이 기기의 내용은 백업 내용으로 덮어써집니다. 진행할까요?`))return;
     const photos=data.photos||{};
     for(const id in photos){try{await idbPut(id,photos[id]);}catch(e){}}
-    state=st;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.notified=state.notified||{};
+    state=st;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.accounts=state.accounts||[];state.notified=state.notified||{};
     save();renderAll();renderMemos();toast("✅ 구글 백업에서 복원했어요");closeMenu();
   }catch(e){toast("복원 중 오류가 났어요");}
 }
@@ -1897,6 +1955,7 @@ function _mergeById(a,b){
 function mergeRemote(remote){
   const r=remote||{};
   state.ledger=_mergeById(state.ledger,r.ledger);                       // 가계부: id 합집합, 최신 우선
+  state.accounts=_mergeById(state.accounts,r.accounts);                 // 계좌 잔액: id 합집합, 최신 우선
   state.memos=_mergeById(state.memos,r.memos);                          // 메모: id 합집합
   state.diary=Object.assign({},r.diary||{},state.diary||{});            // 다이어리: 날짜키 합집합(현 기기 우선)
   state.monthPlan=Object.assign({},r.monthPlan||{},state.monthPlan||{});
@@ -1998,6 +2057,8 @@ function init(){
   document.getElementById("ledParseBtn").onclick=parseAndAddSms;
   document.getElementById("ledPrevM").onclick=()=>shiftLedMonth(-1);
   document.getElementById("ledNextM").onclick=()=>shiftLedMonth(1);
+  document.getElementById("acctSave").onclick=saveAccount;
+  document.getElementById("acctDelete").onclick=deleteAccount;
   document.getElementById("ledSave").onclick=saveLedger;
   document.getElementById("ledTypeSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>setLedType(b.dataset.t));
   document.getElementById("mSave").onclick=saveMemo;
@@ -2026,7 +2087,7 @@ function init(){
   };
   document.getElementById("mReset").onclick=()=>{
     if(confirm("정말 모든 데이터를 삭제할까요? 복구할 수 없습니다."))
-      {const keepDel=state.gdel||[];state={tasks:[],done:{},diary:{},memos:[],monthPlan:{},weekPlan:{},ledger:[],notified:{},gdel:keepDel,gSyncToken:null,gLast:0};save();renderAll();renderMemos();toast("초기화했어요");closeMenu();}
+      {const keepDel=state.gdel||[];state={tasks:[],done:{},diary:{},memos:[],monthPlan:{},weekPlan:{},ledger:[],accounts:[],notified:{},gdel:keepDel,gSyncToken:null,gLast:0};save();renderAll();renderMemos();toast("초기화했어요");closeMenu();}
   };
   // Google sync wiring
   gLoadCfg();
