@@ -552,7 +552,9 @@
     <input id="ledAmt" type="number" inputmode="numeric" placeholder="0" autocomplete="off">
     <label class="fld">날짜</label>
     <input type="date" id="ledDate">
-    <label class="fld">카드 / 결제수단</label>
+    <label class="fld">💳 결제수단 / 계좌 <small style="color:var(--muted);font-weight:400">— 등록한 카드·통장 선택 (잔액·사용액 자동 반영)</small></label>
+    <select id="ledAcct"><option value="">(선택 안 함)</option></select>
+    <label class="fld">카드/결제수단 직접 입력 <small style="color:var(--muted);font-weight:400">(위에서 선택 시 자동)</small></label>
     <input id="ledCard" placeholder="예: 신한카드, 현금" autocomplete="off" list="ledCardList" maxlength="20">
     <datalist id="ledCardList"></datalist>
     <label class="fld">할부</label>
@@ -573,8 +575,6 @@
     <input id="ledMch" placeholder="예: 스타벅스" autocomplete="off" maxlength="60">
     <label class="fld">메모 (선택)</label>
     <input id="ledMemo" placeholder="" autocomplete="off" maxlength="100">
-    <label class="fld">💰 입출금 계좌 <small style="color:var(--muted);font-weight:400">— 선택하면 그 계좌 잔액에 자동 반영</small></label>
-    <select id="ledAcct"><option value="">(잔액 반영 안 함)</option></select>
     <button class="save-btn" id="ledSave">저장</button>
   </div>
 </div>
@@ -592,10 +592,16 @@
 <div class="overlay" id="acctSheet">
   <div class="sheet">
     <div class="grab"></div>
-    <h3 id="acctSheetTitle">계좌 추가</h3>
-    <label class="fld">계좌명 / 은행</label>
-    <input id="acctName" placeholder="예: 신한은행 주거래" autocomplete="off" maxlength="30">
-    <label class="fld">잔액 (원)</label>
+    <h3 id="acctSheetTitle">계좌·카드 추가</h3>
+    <label class="fld">종류</label>
+    <select id="acctKind">
+      <option value="bank">🏦 입출금 통장</option>
+      <option value="check">💳 체크카드</option>
+      <option value="credit">💳 신용카드</option>
+    </select>
+    <label class="fld">이름 (통장명 / 카드명)</label>
+    <input id="acctName" placeholder="예: 신한 주거래, 국민 체크, 삼성 신용" autocomplete="off" maxlength="30">
+    <label class="fld" id="acctBalLabel">잔액 (원)</label>
     <input id="acctBalance" type="number" inputmode="numeric" placeholder="0" autocomplete="off">
     <button class="save-btn" id="acctSave">저장</button>
     <button class="save-btn" id="acctDelete" style="background:transparent;border:1px solid var(--red);color:var(--red);margin-top:10px;display:none">이 계좌 삭제</button>
@@ -1256,7 +1262,7 @@ function renderLedgerDayBody(ds){
 let editAcctId=null;
 function recordAssetSnapshot(){
   state.assetHistory=state.assetHistory||[];
-  const total=(state.accounts||[]).reduce((s,a)=>s+(+a.balance||0),0);
+  const total=(state.accounts||[]).filter(a=>acctKind(a)!=="credit").reduce((s,a)=>s+(+a.balance||0),0);
   const today=todayStr();
   const ex=state.assetHistory.find(h=>h.date===today);
   if(ex){ex.total=total;ex.updatedAt=Date.now();}
@@ -1277,30 +1283,41 @@ function assetTrendSVG(){
 function renderAccounts(){
   const el=document.getElementById("acctSection");if(!el)return;
   const accts=state.accounts||[];
-  const total=accts.reduce((s,a)=>s+(+a.balance||0),0);
-  el.innerHTML=`<div class="acct-card"><div class="acct-head"><span>💰 계좌 잔액</span><span class="acct-total">총 ${wonFmt(total)}원</span></div>`+
-    (accts.length?accts.map(a=>`<div class="acct-row" data-id="${a.id}"><span>${esc(a.name||"계좌")}</span><b>${wonFmt(+a.balance||0)}원</b></div>`).join(""):`<div class="acct-empty">등록된 계좌가 없어요. 아래로 추가하세요.</div>`)+
-    `<button class="acct-add" id="acctAdd">+ 계좌 추가</button>`+assetTrendSVG()+`</div>`;
+  const total=accts.filter(a=>acctKind(a)!=="credit").reduce((s,a)=>s+(+a.balance||0),0);
+  const creditUse=accts.filter(a=>acctKind(a)==="credit").reduce((s,a)=>s+(+a.balance||0),0);
+  el.innerHTML=`<div class="acct-card"><div class="acct-head"><span>💰 계좌 / 카드</span><span class="acct-total">잔액 ${wonFmt(total)}원</span></div>`+
+    (accts.length?accts.map(a=>{const k=acctKind(a),m=ACCT_KINDS[k]||ACCT_KINDS.bank,credit=k==="credit";return `<div class="acct-row" data-id="${a.id}"><span>${m.icon} ${esc(a.name||"계좌")}${credit?'<span style="color:var(--muted);font-size:11px"> · 신용</span>':k==="check"?'<span style="color:var(--muted);font-size:11px"> · 체크</span>':''}</span><b style="${credit?'color:var(--red)':''}">${credit?"사용 ":""}${wonFmt(+a.balance||0)}원</b></div>`;}).join(""):`<div class="acct-empty">등록된 계좌·카드가 없어요. 아래로 추가하세요.</div>`)+
+    (creditUse?`<div style="font-size:11px;color:var(--muted);text-align:right;margin-top:6px">💳 신용카드 사용 합계 <b style="color:var(--red)">${wonFmt(creditUse)}원</b> · 자산 미포함</div>`:"")+
+    `<button class="acct-add" id="acctAdd">+ 계좌·카드 추가</button>`+assetTrendSVG()+`</div>`;
   el.querySelector("#acctAdd").onclick=()=>openAcctSheet(null);
   el.querySelectorAll(".acct-row").forEach(r=>r.onclick=()=>openAcctSheet(r.dataset.id));
+}
+function updateAcctBalLabel(){
+  const k=(document.getElementById("acctKind")||{}).value||"bank";
+  const credit=k==="credit";
+  const lbl=document.getElementById("acctBalLabel");if(lbl)lbl.textContent=credit?"현재 카드 사용액 (원)":"잔액 (원)";
+  const inp=document.getElementById("acctBalance");if(inp)inp.placeholder=credit?"0 (지금까지 쓴 금액)":"0";
 }
 function openAcctSheet(id){
   editAcctId=id;
   const a=id?(state.accounts||[]).find(x=>x.id===id):null;
-  document.getElementById("acctSheetTitle").textContent=a?"계좌 수정":"계좌 추가";
+  document.getElementById("acctSheetTitle").textContent=a?"계좌·카드 수정":"계좌·카드 추가";
+  document.getElementById("acctKind").value=a?acctKind(a):"bank";
   document.getElementById("acctName").value=a?(a.name||""):"";
   document.getElementById("acctBalance").value=a&&a.balance!=null?a.balance:"";
+  updateAcctBalLabel();
   document.getElementById("acctDelete").style.display=a?"block":"none";
   openOverlay("acctSheet");
 }
 function saveAccount(){
   const name=document.getElementById("acctName").value.trim();
+  const kind=document.getElementById("acctKind").value||"bank";
   const balance=parseInt(document.getElementById("acctBalance").value,10)||0;
-  if(!name){toast("계좌명을 입력해주세요");return;}
+  if(!name){toast("이름을 입력해주세요");return;}
   state.accounts=state.accounts||[];
-  if(editAcctId){const a=state.accounts.find(x=>x.id===editAcctId);if(a)Object.assign(a,{name,balance,updatedAt:Date.now()});}
-  else state.accounts.push({id:Date.now()+""+Math.floor(Math.random()*999),name,balance,createdAt:Date.now()});
-  recordAssetSnapshot();save();closeOverlay("acctSheet");renderAccounts();toast(editAcctId?"수정했어요":"계좌 추가 완료");
+  if(editAcctId){const a=state.accounts.find(x=>x.id===editAcctId);if(a)Object.assign(a,{name,kind,balance,updatedAt:Date.now()});}
+  else state.accounts.push({id:Date.now()+""+Math.floor(Math.random()*999),name,kind,balance,createdAt:Date.now()});
+  recordAssetSnapshot();save();closeOverlay("acctSheet");renderAccounts();toast(editAcctId?"수정했어요":"추가 완료");
 }
 function deleteAccount(){
   if(!editAcctId)return;
@@ -1411,19 +1428,23 @@ function setLedType(t){
   if(valid.indexOf(curLedCat)<0)curLedCat=t==="income"?"income_etc":"etc";
   renderLedCatPick();
 }
-/* 입출금 계좌 자동 반영 헬퍼 */
+/* 계좌·카드 자동 반영 헬퍼 */
+const ACCT_KINDS={bank:{name:"입출금 통장",icon:"🏦",asset:true},check:{name:"체크카드",icon:"💳",asset:true},credit:{name:"신용카드",icon:"💳",asset:false}};
+function acctKind(a){return (a&&a.kind)||"bank";}
 function acctName(id){const a=(state.accounts||[]).find(x=>x.id===id);return a?a.name:"";}
-function ledDelta(e){return (e.type==="income"?1:-1)*(+e.amount||0);} // 수입 +, 지출 -
 function applyAcctEffect(e,sign){ // sign:+1 적용 / -1 되돌림
   if(!e||!e.acct)return;
   const a=(state.accounts||[]).find(x=>x.id===e.acct);if(!a)return;
-  a.balance=(+a.balance||0)+sign*ledDelta(e);a.updatedAt=Date.now();
+  const base=(+e.amount||0);
+  // 신용카드: 지출=사용액↑, 수입/상환=사용액↓  /  통장·체크: 수입=잔액↑, 지출=잔액↓
+  const d=acctKind(a)==="credit"?(e.type==="income"?-base:base):(e.type==="income"?base:-base);
+  a.balance=(+a.balance||0)+sign*d;a.updatedAt=Date.now();
 }
 function fillLedAcctOptions(selId){
   const sel=document.getElementById("ledAcct");if(!sel)return;
   const accts=state.accounts||[];
-  sel.innerHTML=`<option value="">(잔액 반영 안 함)</option>`+
-    accts.map(a=>`<option value="${a.id}">${esc(a.name||"계좌")} · ${wonFmt(+a.balance||0)}원</option>`).join("");
+  sel.innerHTML=`<option value="">(선택 안 함)</option>`+
+    accts.map(a=>{const k=acctKind(a),m=ACCT_KINDS[k]||ACCT_KINDS.bank,credit=k==="credit";return `<option value="${a.id}">${m.icon} ${esc(a.name||"계좌")} · ${credit?"사용 ":""}${wonFmt(+a.balance||0)}원</option>`;}).join("");
   sel.value=selId||"";
 }
 function openLedgerAdd(prefill){
@@ -1438,7 +1459,9 @@ function openLedgerAdd(prefill){
   document.getElementById("ledInstallment").value=p.installment||0;
   document.getElementById("ledMch").value=p.merchant||"";
   document.getElementById("ledMemo").value="";
-  fillLedAcctOptions(p.acct||"");
+  let preAcct=p.acct||"";
+  if(!preAcct&&p.card){const m=(state.accounts||[]).find(a=>a.name===p.card);if(m)preAcct=m.id;}
+  fillLedAcctOptions(preAcct);
   openOverlay("ledgerSheet");
 }
 function openLedgerEdit(id){
@@ -2269,6 +2292,8 @@ function init(){
   document.getElementById("ledNextM").onclick=()=>shiftLedMonth(1);
   document.getElementById("acctSave").onclick=saveAccount;
   document.getElementById("acctDelete").onclick=deleteAccount;
+  document.getElementById("acctKind").onchange=updateAcctBalLabel;
+  document.getElementById("ledAcct").onchange=function(){const a=(state.accounts||[]).find(x=>x.id===this.value);if(a)document.getElementById("ledCard").value=a.name||"";};
   document.getElementById("ledSave").onclick=saveLedger;
   document.getElementById("ledDayAdd").onclick=()=>{closeOverlay("ledgerDaySheet");openLedgerAdd({date:ledDay||todayStr()});};
   document.getElementById("ledTypeSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>setLedType(b.dataset.t));
