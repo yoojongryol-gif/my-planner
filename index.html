@@ -374,6 +374,7 @@
   <div id="ledCompare"></div>
   <div id="ledCalendar"></div>
   <div id="ledChart"></div>
+  <div id="ledCardChart"></div>
   <div class="led-cards" id="ledCatFilter"></div>
   <div class="led-cards" id="ledCardFilter"></div>
   <div id="ledgerList"></div>
@@ -1338,6 +1339,22 @@ function renderLedger(){
       return `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>${c.icon} ${esc(c.name)}</span><span style="color:var(--muted)">${wonFmt(v)}원 · ${pct}%</span></div><div style="height:8px;background:var(--surface2);border-radius:5px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${c.color};border-radius:5px"></div></div></div>`;
     }).join("")+`</div>`;
   }
+  // 카드/은행별 사용 (선택 월, 지출 기준) — 일괄 확인
+  const byCard={};
+  month.filter(x=>x.type!=="income").forEach(x=>{const k=x.card||"(미지정)";if(!byCard[k])byCard[k]={sum:0,cnt:0};byCard[k].sum+=(+x.amount||0);byCard[k].cnt++;});
+  const cardEntries=Object.entries(byCard).sort((a,b)=>b[1].sum-a[1].sum);
+  const totCard=cardEntries.reduce((s,e)=>s+e[1].sum,0);
+  const cardChartEl=document.getElementById("ledCardChart");
+  if(!cardEntries.length){cardChartEl.innerHTML="";}
+  else{
+    cardChartEl.innerHTML=`<div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:10px">💳 카드/은행별 사용 <small style="color:var(--muted);font-weight:400">· 탭하면 해당 내역만</small></div>`+cardEntries.map(([k,o])=>{
+      const col=k==="(미지정)"?"#94a3b8":cardColor(k);
+      const pct=totCard?Math.round(o.sum/totCard*100):0;
+      const active=ledFilter===k;
+      return `<div class="led-cardrow" data-c="${esc(k)}" style="margin-bottom:9px;cursor:pointer;${active?'background:var(--surface2);border-radius:8px;padding:6px 8px;margin:-2px -8px 7px':''}"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span><span class="cdot" style="background:${col}"></span>${esc(k)} <span style="color:var(--muted)">${o.cnt}건</span></span><span style="color:var(--muted)">${wonFmt(o.sum)}원 · ${pct}%</span></div><div style="height:8px;background:var(--surface2);border-radius:5px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${col};border-radius:5px"></div></div></div>`;
+    }).join("")+`</div>`;
+    cardChartEl.querySelectorAll(".led-cardrow").forEach(el=>el.onclick=()=>{ledFilter=(ledFilter===el.dataset.c?"all":el.dataset.c);renderLedger();});
+  }
   const cards=[...new Set(all.map(x=>x.card).filter(Boolean))];
   document.getElementById("ledCardList").innerHTML=cards.map(c=>`<option value="${esc(c)}">`).join("");
   // 카테고리 필터 (실제 사용된 카테고리만)
@@ -1355,7 +1372,7 @@ function renderLedger(){
   renderLedCalendar(mP);
   let rows=month;
   if(ledDay)rows=rows.filter(x=>x.date===ledDay);
-  if(ledFilter!=="all")rows=rows.filter(x=>x.card===ledFilter);
+  if(ledFilter!=="all")rows=rows.filter(x=>ledFilter==="(미지정)"?!x.card:x.card===ledFilter);
   if(ledCatFilter!=="all")rows=rows.filter(x=>(x.cat||"")===ledCatFilter);
   const el=document.getElementById("ledgerList");
   if(!rows.length){el.innerHTML=`<div class="empty"><span class="em">💳</span>${ledDay?fmtKDate(ledDay)+" 내역이 없어요. (달력에서 다른 날 탭)":"이 달엔 내역이 없어요.<br>‹ › 로 다른 달을 보거나, 문자 붙여넣기 / + 로 추가하세요."}</div>`;return;}
