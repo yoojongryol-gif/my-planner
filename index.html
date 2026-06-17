@@ -573,6 +573,8 @@
     <input id="ledMch" placeholder="예: 스타벅스" autocomplete="off" maxlength="60">
     <label class="fld">메모 (선택)</label>
     <input id="ledMemo" placeholder="" autocomplete="off" maxlength="100">
+    <label class="fld">💰 입출금 계좌 <small style="color:var(--muted);font-weight:400">— 선택하면 그 계좌 잔액에 자동 반영</small></label>
+    <select id="ledAcct"><option value="">(잔액 반영 안 함)</option></select>
     <button class="save-btn" id="ledSave">저장</button>
   </div>
 </div>
@@ -1242,7 +1244,7 @@ function renderLedgerDayBody(ds){
       <div class="led-bar" style="background:${cat?cat.color:col}"></div>
       <div class="led-info">
         <div class="led-mch">${cat?cat.icon+" ":""}${esc(x.merchant||"(내용 없음)")}</div>
-        <div class="led-sub">${cat?`<span class="led-cattag" style="color:${cat.color}">${cat.name}</span>`:""}${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${(+x.installment>1)?`<span style="color:var(--accent2);font-weight:600">${x.installment}개월 할부·월 ${wonFmt(Math.round((+x.amount||0)/x.installment))}</span>`:""}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
+        <div class="led-sub">${cat?`<span class="led-cattag" style="color:${cat.color}">${cat.name}</span>`:""}${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${(+x.installment>1)?`<span style="color:var(--accent2);font-weight:600">${x.installment}개월 할부·월 ${wonFmt(Math.round((+x.amount||0)/x.installment))}</span>`:""}${x.acct?`<span style="color:var(--accent2);font-weight:600">🏦 ${esc(acctName(x.acct))}</span>`:""}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
       </div>
       <div class="led-amt ${x.type==='income'?'income':'expense'}">${sign}${wonFmt(+x.amount||0)}</div>
       <button class="led-del" data-id="${x.id}">✕</button>
@@ -1385,7 +1387,7 @@ function renderLedger(){
       <div class="led-bar" style="background:${cat?cat.color:col}"></div>
       <div class="led-info">
         <div class="led-mch">${cat?cat.icon+" ":""}${esc(x.merchant||"(내용 없음)")}</div>
-        <div class="led-sub">${cat?`<span class="led-cattag" style="color:${cat.color}">${cat.name}</span>`:""}${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${(+x.installment>1)?`<span style="color:var(--accent2);font-weight:600">${x.installment}개월 할부·월 ${wonFmt(Math.round((+x.amount||0)/x.installment))}</span>`:""}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
+        <div class="led-sub">${cat?`<span class="led-cattag" style="color:${cat.color}">${cat.name}</span>`:""}${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${(+x.installment>1)?`<span style="color:var(--accent2);font-weight:600">${x.installment}개월 할부·월 ${wonFmt(Math.round((+x.amount||0)/x.installment))}</span>`:""}${x.acct?`<span style="color:var(--accent2);font-weight:600">🏦 ${esc(acctName(x.acct))}</span>`:""}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
       </div>
       <div class="led-amt ${x.type==='income'?'income':'expense'}">${sign}${wonFmt(+x.amount||0)}</div>
       <button class="led-del" data-id="${x.id}">✕</button>
@@ -1409,6 +1411,21 @@ function setLedType(t){
   if(valid.indexOf(curLedCat)<0)curLedCat=t==="income"?"income_etc":"etc";
   renderLedCatPick();
 }
+/* 입출금 계좌 자동 반영 헬퍼 */
+function acctName(id){const a=(state.accounts||[]).find(x=>x.id===id);return a?a.name:"";}
+function ledDelta(e){return (e.type==="income"?1:-1)*(+e.amount||0);} // 수입 +, 지출 -
+function applyAcctEffect(e,sign){ // sign:+1 적용 / -1 되돌림
+  if(!e||!e.acct)return;
+  const a=(state.accounts||[]).find(x=>x.id===e.acct);if(!a)return;
+  a.balance=(+a.balance||0)+sign*ledDelta(e);a.updatedAt=Date.now();
+}
+function fillLedAcctOptions(selId){
+  const sel=document.getElementById("ledAcct");if(!sel)return;
+  const accts=state.accounts||[];
+  sel.innerHTML=`<option value="">(잔액 반영 안 함)</option>`+
+    accts.map(a=>`<option value="${a.id}">${esc(a.name||"계좌")} · ${wonFmt(+a.balance||0)}원</option>`).join("");
+  sel.value=selId||"";
+}
 function openLedgerAdd(prefill){
   editLedId=null;
   document.getElementById("ledgerSheetTitle").textContent="내역 추가";
@@ -1421,6 +1438,7 @@ function openLedgerAdd(prefill){
   document.getElementById("ledInstallment").value=p.installment||0;
   document.getElementById("ledMch").value=p.merchant||"";
   document.getElementById("ledMemo").value="";
+  fillLedAcctOptions(p.acct||"");
   openOverlay("ledgerSheet");
 }
 function openLedgerEdit(id){
@@ -1435,6 +1453,7 @@ function openLedgerEdit(id){
   document.getElementById("ledInstallment").value=x.installment||0;
   document.getElementById("ledMch").value=x.merchant||"";
   document.getElementById("ledMemo").value=x.memo||"";
+  fillLedAcctOptions(x.acct||"");
   openOverlay("ledgerSheet");
 }
 function saveLedger(){
@@ -1445,18 +1464,32 @@ function saveLedger(){
   const installment=parseInt(document.getElementById("ledInstallment").value,10)||0;
   const merchant=document.getElementById("ledMch").value.trim();
   const memo=document.getElementById("ledMemo").value.trim();
+  const acct=(document.getElementById("ledAcct")||{}).value||"";
   const cat=curLedCat;
+  let acctMsg="";
   if(editLedId){
     const x=state.ledger.find(e=>e.id===editLedId);
-    if(x)Object.assign(x,{amount,date,card,installment,merchant,memo,cat,type:curLedType,updatedAt:Date.now()});
+    if(x){
+      applyAcctEffect(x,-1); // 기존 효과 되돌림
+      Object.assign(x,{amount,date,card,installment,merchant,memo,cat,acct,type:curLedType,updatedAt:Date.now()});
+      applyAcctEffect(x,1); // 새 효과 적용
+      if(acct)acctMsg=` · ${acctName(acct)} 잔액 반영`;
+    }
   }else{
-    state.ledger.push({id:Date.now()+""+Math.floor(Math.random()*999),amount,date,card,installment,merchant,memo,cat,type:curLedType,createdAt:Date.now()});
+    const e={id:Date.now()+""+Math.floor(Math.random()*999),amount,date,card,installment,merchant,memo,cat,acct,type:curLedType,createdAt:Date.now()};
+    state.ledger.push(e);
+    applyAcctEffect(e,1);
+    if(acct)acctMsg=` · ${acctName(acct)} ${curLedType==="income"?"입금":"출금"} 반영`;
   }
-  save();closeOverlay("ledgerSheet");renderLedger();toast(editLedId?"수정했어요":"내역 추가 완료");
+  if(acct)recordAssetSnapshot();
+  save();closeOverlay("ledgerSheet");renderLedger();toast((editLedId?"수정했어요":"내역 추가 완료")+acctMsg);
 }
 function delLedger(id){
   if(confirm("이 내역을 삭제할까요?")){
+    const e=(state.ledger||[]).find(x=>x.id===id);
+    if(e&&e.acct)applyAcctEffect(e,-1); // 계좌 잔액 원복
     state.ledger=(state.ledger||[]).filter(e=>e.id!==id);
+    if(e&&e.acct)recordAssetSnapshot();
     save();renderLedger();toast("삭제했어요");
   }
 }
