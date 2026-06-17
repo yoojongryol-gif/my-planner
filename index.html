@@ -260,6 +260,19 @@
   .led-catopt.sel{color:#fff;border-color:transparent}
   .led-caticon{flex:0 0 auto}
   .led-cattag{display:inline-flex;align-items:center;gap:3px;font-weight:600}
+  /* 가계부 달력 */
+  .led-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;margin-bottom:12px}
+  .led-cal .dow{font-size:10px;color:var(--muted);text-align:center;padding:2px 0;font-weight:600}
+  .led-cal .dow.sun{color:#f87171}.led-cal .dow.sat{color:#60a5fa}
+  .lcday{min-height:48px;border-radius:8px;padding:3px 1px 2px;background:var(--surface2);display:flex;flex-direction:column;align-items:center;cursor:pointer;overflow:hidden}
+  .lcday.empty{background:transparent;cursor:default}
+  .lcday.today{outline:2px solid var(--accent)}
+  .lcday.sel{background:var(--accent)}
+  .lcd-n{font-size:11px;font-weight:600}
+  .lcday.sel .lcd-n{color:#fff}
+  .lcd-exp{font-size:9px;color:var(--red);line-height:1.25;white-space:nowrap;font-weight:600}
+  .lcd-inc{font-size:9px;color:var(--green);line-height:1.25;white-space:nowrap;font-weight:600}
+  .lcday.sel .lcd-exp,.lcday.sel .lcd-inc{color:#fff}
 </style>
 </head>
 <body>
@@ -343,6 +356,7 @@
     <div class="card over"><div class="num" id="ledSumExp">0</div><div class="lbl">지출</div></div>
     <div class="card done"><div class="num" id="ledSumInc">0</div><div class="lbl">수입</div></div>
   </div>
+  <div id="ledCalendar"></div>
   <div id="ledChart"></div>
   <div class="led-cards" id="ledCatFilter"></div>
   <div class="led-cards" id="ledCardFilter"></div>
@@ -563,7 +577,7 @@ let curTab="cal",editMemoId=null,curMemoPhotos=[],curMemoAudio=null,mediaRec=nul
 let speechRec=null,curTranscript="";
 let curSubs=[];
 let curPhotos=[]; // photos being edited in diary sheet
-let editLedId=null,curLedType="expense",ledFilter="all",curLedCat="etc",ledCatFilter="all",ledgerMonth=null;
+let editLedId=null,curLedType="expense",ledFilter="all",curLedCat="etc",ledCatFilter="all",ledgerMonth=null,ledDay=null;
 const LED_CATS={
   food:{name:"식비",icon:"🍔",color:"#f97316"},
   cafe:{name:"카페·간식",icon:"☕",color:"#d97706"},
@@ -1068,7 +1082,27 @@ function shiftLedMonth(n){
   const [y,m]=base.split("-").map(Number);
   const d=new Date(y,m-1+n,1);
   ledgerMonth=d.getFullYear()+"-"+pad(d.getMonth()+1);
+  ledDay=null;
   renderLedger();
+}
+function wonFmtK(v){v=Math.round(v);if(v>=10000){const m=v/10000;return (m>=10?Math.round(m):(""+m.toFixed(1)).replace(/\.0$/,""))+"만";}if(v>=1000)return Math.round(v/1000)+"천";return ""+v;}
+function renderLedCalendar(mP){
+  const el=document.getElementById("ledCalendar");if(!el)return;
+  const [y,mo]=mP.split("-").map(Number);
+  const startDow=new Date(y,mo-1,1).getDay();
+  const daysInM=new Date(y,mo,0).getDate();
+  const dExp={},dInc={};
+  (state.ledger||[]).forEach(x=>{if(!x.date||x.date.indexOf(mP)!==0)return;const d=+x.date.slice(8,10);if(x.type==="income")dInc[d]=(dInc[d]||0)+(+x.amount||0);else dExp[d]=(dExp[d]||0)+(+x.amount||0);});
+  const dows=["일","월","화","수","목","금","토"];
+  let html=`<div class="led-cal">`+dows.map((n,i)=>`<div class="dow ${i===0?'sun':''}${i===6?'sat':''}">${n}</div>`).join("");
+  for(let i=0;i<startDow;i++)html+=`<div class="lcday empty"></div>`;
+  const today=todayStr();
+  for(let d=1;d<=daysInM;d++){
+    const ds=`${mP}-${pad(d)}`,ex=dExp[d]||0,inc=dInc[d]||0;
+    html+=`<div class="lcday ${ledDay===ds?'sel':''} ${ds===today?'today':''}" data-ds="${ds}"><div class="lcd-n">${d}</div>${ex?`<div class="lcd-exp">-${wonFmtK(ex)}</div>`:""}${inc?`<div class="lcd-inc">+${wonFmtK(inc)}</div>`:""}</div>`;
+  }
+  el.innerHTML=html+`</div>`;
+  el.querySelectorAll(".lcday[data-ds]").forEach(c=>c.onclick=()=>{ledDay=(ledDay===c.dataset.ds?null:c.dataset.ds);renderLedger();});
 }
 function renderLedger(){
   const now=new Date();
@@ -1107,11 +1141,13 @@ function renderLedger(){
     .concat(cards.map(c=>`<div class="led-chip ${ledFilter===c?'active':''}" data-c="${esc(c)}"><span class="cdot" style="background:${cardColor(c)}"></span>${esc(c)}</div>`));
   document.getElementById("ledCardFilter").innerHTML=chips.join("");
   document.getElementById("ledCardFilter").querySelectorAll(".led-chip").forEach(el=>el.onclick=()=>{ledFilter=el.dataset.c;renderLedger();});
+  renderLedCalendar(mP);
   let rows=month;
+  if(ledDay)rows=rows.filter(x=>x.date===ledDay);
   if(ledFilter!=="all")rows=rows.filter(x=>x.card===ledFilter);
   if(ledCatFilter!=="all")rows=rows.filter(x=>(x.cat||"")===ledCatFilter);
   const el=document.getElementById("ledgerList");
-  if(!rows.length){el.innerHTML=`<div class="empty"><span class="em">💳</span>이 달엔 내역이 없어요.<br>‹ › 로 다른 달을 보거나, 문자 붙여넣기 / + 로 추가하세요.</div>`;return;}
+  if(!rows.length){el.innerHTML=`<div class="empty"><span class="em">💳</span>${ledDay?fmtKDate(ledDay)+" 내역이 없어요. (달력에서 다른 날 탭)":"이 달엔 내역이 없어요.<br>‹ › 로 다른 달을 보거나, 문자 붙여넣기 / + 로 추가하세요."}</div>`;return;}
   let html="",lastDate="";
   rows.forEach(x=>{
     if(x.date!==lastDate){lastDate=x.date;html+=`<div class="led-daygrp">${fmtKDate(x.date)}</div>`;}
