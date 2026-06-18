@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-06-18b-->
+<!--APPVER:v2026-06-18c-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -554,6 +554,7 @@
     <div class="menu-item" id="mImport"><span class="mi">⬆️</span>데이터 복원(파일 가져오기)</div>
     <div class="menu-item" id="mClearDone"><span class="mi">🧹</span>완료된 할일 정리</div>
     <div class="menu-item" id="mLock"><span class="mi">🔒</span><span id="mLockLabel">앱 잠금 (암호) 설정</span></div>
+    <div class="menu-item" id="mLockMode"><span class="mi">🔑</span><span id="mLockModeLabel">잠금 방식: 비밀번호</span></div>
     <div class="menu-item" id="mReset" style="color:var(--red)"><span class="mi">🗑️</span>전체 초기화</div>
     <input type="file" id="importFile" accept="application/json" style="display:none">
     <p style="color:var(--muted);font-size:12px;margin-top:18px;line-height:1.6">
@@ -685,14 +686,14 @@
   <div style="font-size:52px">🔒</div>
   <div style="font-size:16px;font-weight:700;margin:14px 0 18px">암호를 입력하세요</div>
   <input id="lockInput" type="password" inputmode="numeric" maxlength="6" autocomplete="off" style="width:170px;text-align:center;font-size:24px;letter-spacing:8px;padding:12px" placeholder="••••">
-  <button class="save-btn" id="lockBtn" style="max-width:200px">잠금 해제</button>
   <button class="save-btn" id="lockBioBtn" style="max-width:200px;display:none;background:transparent;border:1px solid var(--accent);color:var(--accent);margin-top:10px">🙂 Face ID / 지문으로 해제</button>
+  <button id="lockPinFallback" style="display:none;background:none;border:none;color:var(--muted);font-size:13px;margin-top:14px;text-decoration:underline">비밀번호로 잠금 해제</button>
   <div id="lockMsg" style="font-size:12px;color:var(--red);margin-top:10px;min-height:16px"></div>
 </div>
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-06-18b";
+const APP_VERSION="v2026-06-18c";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -1343,7 +1344,34 @@ async function unlockSecret(){
   if(await hashPin(pin)===localStorage.getItem("app.lock")){secretUnlocked=true;renderMemos();toast("🔓 시크릿 잠금 해제");}
   else toast("암호가 틀렸어요");
 }
-function showLock(){secretUnlocked=false;if(!lockIsOn())return;const ls=document.getElementById("lockScreen");if(!ls)return;ls.style.display="flex";document.getElementById("lockInput").value="";document.getElementById("lockMsg").textContent="";const bb=document.getElementById("lockBioBtn");if(bb)bb.style.display=bioIsOn()?"block":"none";setTimeout(()=>{try{document.getElementById("lockInput").focus();}catch(e){}},150);}
+function lockMode(){return localStorage.getItem("app.lock.mode")||(bioIsOn()?"bio":"pin");}
+function showLock(){
+  secretUnlocked=false;
+  if(!lockIsOn())return;
+  const ls=document.getElementById("lockScreen");if(!ls)return;
+  ls.style.display="flex";
+  document.getElementById("lockInput").value="";document.getElementById("lockMsg").textContent="";
+  const bb=document.getElementById("lockBioBtn"),pin=document.getElementById("lockInput"),fb=document.getElementById("lockPinFallback");
+  if(lockMode()==="bio"&&bioIsOn()){
+    pin.style.display="none";if(bb)bb.style.display="block";if(fb)fb.style.display="block";
+    setTimeout(()=>{try{bioUnlock();}catch(e){}},300);
+  }else{
+    pin.style.display="block";if(bb)bb.style.display="none";if(fb)fb.style.display="none";
+    setTimeout(()=>{try{pin.focus();}catch(e){}},150);
+  }
+}
+function showPinFallback(){const pin=document.getElementById("lockInput"),fb=document.getElementById("lockPinFallback");pin.style.display="block";if(fb)fb.style.display="none";setTimeout(()=>{try{pin.focus();}catch(e){}},100);}
+async function chooseLockMode(){
+  if(!lockIsOn()){toast("먼저 앱 잠금을 설정하세요");return;}
+  if(!await bioAvailable()){localStorage.setItem("app.lock.mode","pin");renderLockModeUI();toast("이 기기는 생체인증을 지원하지 않아 비밀번호만 사용해요");return;}
+  const useBio=confirm("잠금 해제 방식을 선택하세요.\n\n[확인] 생체인증 (Face ID·지문)\n[취소] 비밀번호");
+  if(useBio){
+    if(!bioIsOn()){if(!await registerBio()){toast("생체인증 등록이 취소됐어요");return;}}
+    localStorage.setItem("app.lock.mode","bio");toast("🙂 생체인증으로 잠금 해제합니다");
+  }else{localStorage.setItem("app.lock.mode","pin");toast("🔢 비밀번호로 잠금 해제합니다");}
+  renderLockModeUI();
+}
+function renderLockModeUI(){const el=document.getElementById("mLockModeLabel");if(el)el.textContent="잠금 방식: "+(lockMode()==="bio"?"생체인증(Face ID·지문)":"비밀번호");}
 async function tryUnlock(){
   const pin=document.getElementById("lockInput").value;
   if(await hashPin(pin)===localStorage.getItem("app.lock")){document.getElementById("lockScreen").style.display="none";document.getElementById("lockMsg").textContent="";}
@@ -2656,11 +2684,12 @@ function init(){
   }
   document.getElementById("mNotify").onclick=()=>ensureNotifyPermission().then(renderNotifUI);
   document.getElementById("mLock").onclick=setupLock;
-  document.getElementById("lockBtn").onclick=tryUnlock;
+  document.getElementById("mLockMode").onclick=()=>chooseLockMode();
   document.getElementById("lockBioBtn").onclick=bioUnlock;
+  document.getElementById("lockPinFallback").onclick=showPinFallback;
   document.getElementById("lockInput").addEventListener("keydown",e=>{if(e.key==="Enter")tryUnlock();});
   document.getElementById("lockInput").addEventListener("input",autoUnlockCheck);
-  renderLockUI();
+  renderLockUI();renderLockModeUI();
   document.addEventListener("visibilitychange",()=>{if(document.hidden)_hiddenAt=Date.now();else if(lockIsOn()&&_hiddenAt&&Date.now()-_hiddenAt>120000)showLock();});
   showLock();
   renderNotifUI();
