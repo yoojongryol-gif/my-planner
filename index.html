@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-06-18c-->
+<!--APPVER:v2026-06-19a-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -285,6 +285,16 @@
   .ldsum-item span{font-size:11px;color:var(--muted)}
   .ldsum-item b{font-size:15px}
   .ledday-list{max-height:46vh;overflow-y:auto;margin-bottom:12px}
+  /* 카드별 월별 사용 목록 */
+  .card-monthly{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:12px}
+  .card-monthly-h{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+  .cm-row{display:flex;align-items:center;gap:8px;padding:8px 8px;border-radius:9px;cursor:pointer}
+  .cm-row+.cm-row{border-top:1px solid var(--line)}
+  .cm-row:active{background:var(--surface2)}
+  .cm-row.sel{background:var(--surface2)}
+  .cm-row .cm-mon{font-weight:600;font-size:13px;min-width:60px}
+  .cm-row .cm-cnt{font-size:11px;color:var(--muted);flex:1}
+  .cm-row b{font-size:13px}
   /* 가계부 섹션 접기/펼치기 */
   .led-sec{margin-bottom:10px}
   .led-sec-h{display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:11px 14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;user-select:none}
@@ -693,7 +703,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-06-18c";
+const APP_VERSION="v2026-06-19a";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -1588,7 +1598,10 @@ function renderLedger(){
     }).join("")+`</div>`;
     cardChartEl.querySelectorAll(".led-cardrow").forEach(el=>el.onclick=()=>{ledFilter=(ledFilter===el.dataset.c?"all":el.dataset.c);renderLedger();});
   }
-  const cards=[...new Set(all.map(x=>x.card).filter(Boolean))];
+  // 등록된 카드·통장(state.accounts) + 실제 사용된 카드 합쳐서 선택 가능하게
+  const acctNames=(state.accounts||[]).map(a=>a.name).filter(Boolean);
+  const usedCards=all.map(x=>x.card).filter(Boolean);
+  const cards=[...new Set([...acctNames,...usedCards])];
   document.getElementById("ledCardList").innerHTML=cards.map(c=>`<option value="${esc(c)}">`).join("");
   // 카테고리 필터 (실제 사용된 카테고리만)
   const usedCats=[...new Set(all.map(x=>x.cat).filter(k=>k&&LED_CATS[k]))];
@@ -1607,24 +1620,47 @@ function renderLedger(){
   if(ledDay)rows=rows.filter(x=>x.date===ledDay);
   if(ledFilter!=="all")rows=rows.filter(x=>ledFilter==="(미지정)"?!x.card:x.card===ledFilter);
   if(ledCatFilter!=="all")rows=rows.filter(x=>(x.cat||"")===ledCatFilter);
+  // 특정 카드 선택 시 — 그 카드의 월별 사용 목록 (탭하면 해당 달로 이동)
+  let cardMonthlyHtml="";
+  if(ledFilter!=="all"){
+    const cf=ledFilter, byMonth={};
+    (state.ledger||[]).forEach(x=>{
+      if(!x.date||x.type==="income")return;
+      const isCard=cf==="(미지정)"?!x.card:x.card===cf;
+      if(!isCard)return;
+      const m=x.date.slice(0,7);
+      if(!byMonth[m])byMonth[m]={sum:0,cnt:0};
+      byMonth[m].sum+=(+x.amount||0);byMonth[m].cnt++;
+    });
+    const ms=Object.keys(byMonth).sort((a,b)=>b.localeCompare(a)).slice(0,12);
+    if(ms.length){
+      const col=cf==="(미지정)"?"#94a3b8":cardColor(cf);
+      cardMonthlyHtml=`<div class="card-monthly"><div class="card-monthly-h"><span class="cdot" style="background:${col}"></span>${esc(cf)} · 월별 사용 <small style="color:var(--muted);font-weight:400">· 탭하면 그 달 내역</small></div>`+
+        ms.map(m=>{const o=byMonth[m],sel=m===mP;return `<div class="cm-row${sel?' sel':''}" data-m="${m}"><span class="cm-mon">${m.slice(0,4)}.${m.slice(5,7)}</span><span class="cm-cnt">${o.cnt}건</span><b>${wonFmt(o.sum)}원</b></div>`;}).join("")+`</div>`;
+    }
+  }
   const el=document.getElementById("ledgerList");
-  if(!rows.length){el.innerHTML=`<div class="empty"><span class="em">💳</span>${ledDay?fmtKDate(ledDay)+" 내역이 없어요. (달력에서 다른 날 탭)":"이 달엔 내역이 없어요.<br>‹ › 로 다른 달을 보거나, 문자 붙여넣기 / + 로 추가하세요."}</div>`;return;}
   let html="",lastDate="";
-  rows.forEach(x=>{
-    if(x.date!==lastDate){lastDate=x.date;html+=`<div class="led-daygrp">${fmtKDate(x.date)}</div>`;}
-    const col=cardColor(x.card);const sign=x.type==="income"?"+":"-";
-    const cat=LED_CATS[x.cat];
-    html+=`<div class="led-row" data-id="${x.id}">
-      <div class="led-bar" style="background:${cat?cat.color:col}"></div>
-      <div class="led-info">
-        <div class="led-mch">${cat?cat.icon+" ":""}${esc(x.merchant||"(내용 없음)")}</div>
-        <div class="led-sub">${cat?`<span class="led-cattag" style="color:${cat.color}">${cat.name}</span>`:""}${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${(+x.installment>1)?`<span style="color:var(--accent2);font-weight:600">${x.installment}개월 할부·월 ${wonFmt(Math.round((+x.amount||0)/x.installment))}</span>`:""}${x.acct?`<span style="color:var(--accent2);font-weight:600">🏦 ${esc(acctName(x.acct))}</span>`:""}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
-      </div>
-      <div class="led-amt ${x.type==='income'?'income':'expense'}">${sign}${wonFmt(+x.amount||0)}</div>
-      <button class="led-del" data-id="${x.id}">✕</button>
-    </div>`;
-  });
-  el.innerHTML=html;
+  if(!rows.length){
+    html=`<div class="empty"><span class="em">💳</span>${ledDay?fmtKDate(ledDay)+" 내역이 없어요. (달력에서 다른 날 탭)":(ledFilter!=="all"?"이 달엔 이 카드 내역이 없어요. 위 월별 목록에서 다른 달을 탭하세요.":"이 달엔 내역이 없어요.<br>‹ › 로 다른 달을 보거나, 문자 붙여넣기 / + 로 추가하세요.")}</div>`;
+  }else{
+    rows.forEach(x=>{
+      if(x.date!==lastDate){lastDate=x.date;html+=`<div class="led-daygrp">${fmtKDate(x.date)}</div>`;}
+      const col=cardColor(x.card);const sign=x.type==="income"?"+":"-";
+      const cat=LED_CATS[x.cat];
+      html+=`<div class="led-row" data-id="${x.id}">
+        <div class="led-bar" style="background:${cat?cat.color:col}"></div>
+        <div class="led-info">
+          <div class="led-mch">${cat?cat.icon+" ":""}${esc(x.merchant||"(내용 없음)")}</div>
+          <div class="led-sub">${cat?`<span class="led-cattag" style="color:${cat.color}">${cat.name}</span>`:""}${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${(+x.installment>1)?`<span style="color:var(--accent2);font-weight:600">${x.installment}개월 할부·월 ${wonFmt(Math.round((+x.amount||0)/x.installment))}</span>`:""}${x.acct?`<span style="color:var(--accent2);font-weight:600">🏦 ${esc(acctName(x.acct))}</span>`:""}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
+        </div>
+        <div class="led-amt ${x.type==='income'?'income':'expense'}">${sign}${wonFmt(+x.amount||0)}</div>
+        <button class="led-del" data-id="${x.id}">✕</button>
+      </div>`;
+    });
+  }
+  el.innerHTML=cardMonthlyHtml+html;
+  el.querySelectorAll(".cm-row").forEach(r=>r.onclick=()=>{ledgerMonth=r.dataset.m;ledDay=null;renderLedger();});
   el.querySelectorAll(".led-del").forEach(b=>b.onclick=e=>{e.stopPropagation();delLedger(b.dataset.id);});
   el.querySelectorAll(".led-row").forEach(r=>r.onclick=e=>{if(e.target.closest(".led-del"))return;openLedgerEdit(r.dataset.id);});
 }
