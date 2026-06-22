@@ -1235,6 +1235,7 @@ function deleteDiary(){
 function openViewer(src){document.getElementById("vImg").src=src;openOverlay("viewer");}
 
 /* ---------- 가계부 (ledger) ---------- */
+function activeLed(){return (state.ledger||[]).filter(x=>!x.deleted);} // 삭제표시(tombstone) 제외하고 표시·집계
 const CARD_COLORS={"신한":"#0046ff","KB국민":"#ffbc00","국민":"#ffbc00","삼성":"#1428a0","현대":"#111111","롯데":"#da291c","하나":"#008485","우리":"#0067ac","NH농협":"#19a463","농협":"#19a463","비씨":"#e3002b","BC":"#e3002b","카카오뱅크":"#ffcd00","카카오":"#ffcd00","토스":"#0064ff","씨티":"#003b70","케이뱅크":"#ff5a00","IBK기업":"#0066b3","기업":"#0066b3","현금":"#16a34a"};
 function cardColor(name){if(!name)return "#94a3b8";for(const k in CARD_COLORS){if(name.indexOf(k)>=0)return CARD_COLORS[k];}let h=0;for(let i=0;i<name.length;i++)h=name.charCodeAt(i)+((h<<5)-h);return `hsl(${Math.abs(h)%360} 58% 48%)`;}
 function wonFmt(n){return (n||0).toLocaleString("ko-KR");}
@@ -1430,7 +1431,7 @@ function renderLedCalendar(mP){
   const startDow=new Date(y,mo-1,1).getDay();
   const daysInM=new Date(y,mo,0).getDate();
   const dExp={},dInc={};
-  (state.ledger||[]).forEach(x=>{if(!x.date||x.date.indexOf(mP)!==0)return;const d=+x.date.slice(8,10);if(x.type==="income")dInc[d]=(dInc[d]||0)+(+x.amount||0);else dExp[d]=(dExp[d]||0)+(+x.amount||0);});
+  activeLed().forEach(x=>{if(!x.date||x.date.indexOf(mP)!==0)return;const d=+x.date.slice(8,10);if(x.type==="income")dInc[d]=(dInc[d]||0)+(+x.amount||0);else dExp[d]=(dExp[d]||0)+(+x.amount||0);});
   const dows=["일","월","화","수","목","금","토"];
   let html=`<div class="led-cal">`+dows.map((n,i)=>`<div class="dow ${i===0?'sun':''}${i===6?'sat':''}">${n}</div>`).join("");
   for(let i=0;i<startDow;i++)html+=`<div class="lcday empty"></div>`;
@@ -1449,7 +1450,7 @@ function openLedgerDay(ds){
 }
 function renderLedgerDayBody(ds){
   document.getElementById("ledDayTitle").textContent=fmtKDate(ds);
-  const rows=(state.ledger||[]).filter(x=>x.date===ds).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const rows=activeLed().filter(x=>x.date===ds).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const exp=rows.filter(x=>x.type!=="income").reduce((s,x)=>s+(+x.amount||0),0);
   const inc=rows.filter(x=>x.type==="income").reduce((s,x)=>s+(+x.amount||0),0);
   document.getElementById("ledDaySummary").innerHTML=
@@ -1553,7 +1554,7 @@ function renderLedger(){
   const now=new Date();
   const mP=ledgerMonth||`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
   document.getElementById("ledMonthLbl").textContent=mP.slice(0,4)+"년 "+(+mP.slice(5,7))+"월";
-  const all=(state.ledger||[]).slice().sort((a,b)=>a.date!==b.date?b.date.localeCompare(a.date):(b.createdAt||0)-(a.createdAt||0));
+  const all=activeLed().slice().sort((a,b)=>a.date!==b.date?b.date.localeCompare(a.date):(b.createdAt||0)-(a.createdAt||0));
   const month=all.filter(x=>x.date&&x.date.indexOf(mP)===0);
   const exp=month.filter(x=>x.type!=="income").reduce((s,x)=>s+(+x.amount||0),0);
   const inc=month.filter(x=>x.type==="income").reduce((s,x)=>s+(+x.amount||0),0);
@@ -1562,7 +1563,7 @@ function renderLedger(){
   // 전월 대비 지출
   const [cy,cm]=mP.split("-").map(Number);
   const pv=new Date(cy,cm-2,1),pvP=pv.getFullYear()+"-"+pad(pv.getMonth()+1);
-  const prevExp=(state.ledger||[]).filter(x=>x.type!=="income"&&x.date&&x.date.indexOf(pvP)===0).reduce((s,x)=>s+(+x.amount||0),0);
+  const prevExp=activeLed().filter(x=>x.type!=="income"&&x.date&&x.date.indexOf(pvP)===0).reduce((s,x)=>s+(+x.amount||0),0);
   const cmpEl=document.getElementById("ledCompare");
   if(prevExp>0){
     const diff=exp-prevExp,pct=Math.round(Math.abs(diff)/prevExp*100),up=diff>0;
@@ -1624,7 +1625,7 @@ function renderLedger(){
   let cardMonthlyHtml="";
   if(ledFilter!=="all"){
     const cf=ledFilter, byMonth={};
-    (state.ledger||[]).forEach(x=>{
+    activeLed().forEach(x=>{
       if(!x.date||x.type==="income")return;
       const isCard=cf==="(미지정)"?!x.card:x.card===cf;
       if(!isCard)return;
@@ -1715,7 +1716,7 @@ function openLedgerAdd(prefill){
   openOverlay("ledgerSheet");
 }
 function openLedgerEdit(id){
-  const x=(state.ledger||[]).find(e=>e.id===id);if(!x)return;
+  const x=(state.ledger||[]).find(e=>e.id===id);if(!x||x.deleted)return;
   editLedId=id;
   document.getElementById("ledgerSheetTitle").textContent="내역 수정";
   curLedCat=x.cat||(x.type==="income"?"income_etc":"etc");
@@ -1761,7 +1762,7 @@ function delLedger(id){
   if(confirm("이 내역을 삭제할까요?")){
     const e=(state.ledger||[]).find(x=>x.id===id);
     if(e&&e.acct)applyAcctEffect(e,-1); // 계좌 잔액 원복
-    state.ledger=(state.ledger||[]).filter(e=>e.id!==id);
+    if(e){e.deleted=true;e.updatedAt=Date.now();} // tombstone: 배열에서 빼지 않고 삭제표시 → 동기화 부활 방지(다이어리와 동일 방식)
     if(e&&e.acct)recordAssetSnapshot();
     save();renderLedger();toast("삭제했어요");
   }
