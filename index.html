@@ -627,19 +627,22 @@
     <div class="seg" id="ledTypeSeg">
       <button data-t="expense" class="on">지출</button>
       <button data-t="income">수입</button>
+      <button data-t="transfer">🔄 이체</button>
     </div>
-    <label class="fld">카테고리</label>
-    <div class="led-catgrid" id="ledCatPick"></div>
+    <div id="ledRowCat"><label class="fld">카테고리</label>
+    <div class="led-catgrid" id="ledCatPick"></div></div>
     <label class="fld">금액 (원)</label>
     <input id="ledAmt" type="number" inputmode="numeric" placeholder="0" autocomplete="off">
     <label class="fld">날짜</label>
     <input type="date" id="ledDate">
-    <label class="fld">💳 결제수단 / 계좌 <small style="color:var(--muted);font-weight:400">— 등록한 카드·통장 선택 (잔액·사용액 자동 반영)</small></label>
+    <label class="fld" id="ledAcctLabel">💳 결제수단 / 계좌 <small style="color:var(--muted);font-weight:400">— 등록한 카드·통장 선택 (잔액·사용액 자동 반영)</small></label>
     <select id="ledAcct"><option value="">(선택 안 함)</option></select>
-    <label class="fld">카드/결제수단 직접 입력 <small style="color:var(--muted);font-weight:400">(위에서 선택 시 자동)</small></label>
+    <div id="ledRowTo" style="display:none"><label class="fld">📥 입금 계좌 <small style="color:var(--muted);font-weight:400">— 돈을 받는 통장</small></label>
+    <select id="ledAcctTo"><option value="">(선택)</option></select></div>
+    <div id="ledRowCard"><label class="fld">카드/결제수단 직접 입력 <small style="color:var(--muted);font-weight:400">(위에서 선택 시 자동)</small></label>
     <input id="ledCard" placeholder="예: 신한카드, 현금" autocomplete="off" list="ledCardList" maxlength="20">
-    <datalist id="ledCardList"></datalist>
-    <label class="fld">할부</label>
+    <datalist id="ledCardList"></datalist></div>
+    <div id="ledRowInst"><label class="fld">할부</label>
     <select id="ledInstallment">
       <option value="0">일시불</option>
       <option value="2">2개월</option>
@@ -652,9 +655,9 @@
       <option value="12">12개월</option>
       <option value="18">18개월</option>
       <option value="24">24개월</option>
-    </select>
-    <label class="fld">가맹점 / 내용</label>
-    <input id="ledMch" placeholder="예: 스타벅스" autocomplete="off" maxlength="60">
+    </select></div>
+    <div id="ledRowMch"><label class="fld">가맹점 / 내용</label>
+    <input id="ledMch" placeholder="예: 스타벅스" autocomplete="off" maxlength="60"></div>
     <label class="fld">메모 (선택)</label>
     <input id="ledMemo" placeholder="" autocomplete="off" maxlength="100">
     <button class="save-btn" id="ledSave">저장</button>
@@ -1431,7 +1434,7 @@ function renderLedCalendar(mP){
   const startDow=new Date(y,mo-1,1).getDay();
   const daysInM=new Date(y,mo,0).getDate();
   const dExp={},dInc={};
-  activeLed().forEach(x=>{if(!x.date||x.date.indexOf(mP)!==0)return;const d=+x.date.slice(8,10);if(x.type==="income")dInc[d]=(dInc[d]||0)+(+x.amount||0);else dExp[d]=(dExp[d]||0)+(+x.amount||0);});
+  activeLed().forEach(x=>{if(!x.date||x.date.indexOf(mP)!==0)return;const d=+x.date.slice(8,10);if(x.type==="income")dInc[d]=(dInc[d]||0)+(+x.amount||0);else if(x.type!=="transfer")dExp[d]=(dExp[d]||0)+(+x.amount||0);});
   const dows=["일","월","화","수","목","금","토"];
   let html=`<div class="led-cal">`+dows.map((n,i)=>`<div class="dow ${i===0?'sun':''}${i===6?'sat':''}">${n}</div>`).join("");
   for(let i=0;i<startDow;i++)html+=`<div class="lcday empty"></div>`;
@@ -1451,7 +1454,7 @@ function openLedgerDay(ds){
 function renderLedgerDayBody(ds){
   document.getElementById("ledDayTitle").textContent=fmtKDate(ds);
   const rows=activeLed().filter(x=>x.date===ds).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-  const exp=rows.filter(x=>x.type!=="income").reduce((s,x)=>s+(+x.amount||0),0);
+  const exp=rows.filter(x=>x.type!=="income"&&x.type!=="transfer").reduce((s,x)=>s+(+x.amount||0),0);
   const inc=rows.filter(x=>x.type==="income").reduce((s,x)=>s+(+x.amount||0),0);
   document.getElementById("ledDaySummary").innerHTML=
     `<div class="ldsum-item"><span>지출</span><b style="color:var(--red)">-${wonFmt(exp)}</b></div>`+
@@ -1459,6 +1462,17 @@ function renderLedgerDayBody(ds){
   const list=document.getElementById("ledDayList");
   if(!rows.length){list.innerHTML=`<div class="empty"><span class="em">💳</span>이 날 내역이 없어요.</div>`;return;}
   list.innerHTML=rows.map(x=>{
+    if(x.type==="transfer"){
+      return `<div class="led-row" data-id="${x.id}">
+      <div class="led-bar" style="background:#64748b"></div>
+      <div class="led-info">
+        <div class="led-mch">🔄 ${esc(acctName(x.acct)||"?")} → ${esc(acctName(x.toAcct)||"?")}</div>
+        <div class="led-sub"><span style="color:var(--muted)">계좌 이체</span>${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
+      </div>
+      <div class="led-amt" style="color:var(--muted)">${wonFmt(+x.amount||0)}</div>
+      <button class="led-del" data-id="${x.id}">✕</button>
+    </div>`;
+    }
     const col=cardColor(x.card);const sign=x.type==="income"?"+":"-";const cat=LED_CATS[x.cat];
     return `<div class="led-row" data-id="${x.id}">
       <div class="led-bar" style="background:${cat?cat.color:col}"></div>
@@ -1556,14 +1570,14 @@ function renderLedger(){
   document.getElementById("ledMonthLbl").textContent=mP.slice(0,4)+"년 "+(+mP.slice(5,7))+"월";
   const all=activeLed().slice().sort((a,b)=>a.date!==b.date?b.date.localeCompare(a.date):(b.createdAt||0)-(a.createdAt||0));
   const month=all.filter(x=>x.date&&x.date.indexOf(mP)===0);
-  const exp=month.filter(x=>x.type!=="income").reduce((s,x)=>s+(+x.amount||0),0);
+  const exp=month.filter(x=>x.type!=="income"&&x.type!=="transfer").reduce((s,x)=>s+(+x.amount||0),0);
   const inc=month.filter(x=>x.type==="income").reduce((s,x)=>s+(+x.amount||0),0);
   document.getElementById("ledSumExp").textContent=wonFmt(exp);
   document.getElementById("ledSumInc").textContent=wonFmt(inc);
   // 전월 대비 지출
   const [cy,cm]=mP.split("-").map(Number);
   const pv=new Date(cy,cm-2,1),pvP=pv.getFullYear()+"-"+pad(pv.getMonth()+1);
-  const prevExp=activeLed().filter(x=>x.type!=="income"&&x.date&&x.date.indexOf(pvP)===0).reduce((s,x)=>s+(+x.amount||0),0);
+  const prevExp=activeLed().filter(x=>x.type!=="income"&&x.type!=="transfer"&&x.date&&x.date.indexOf(pvP)===0).reduce((s,x)=>s+(+x.amount||0),0);
   const cmpEl=document.getElementById("ledCompare");
   if(prevExp>0){
     const diff=exp-prevExp,pct=Math.round(Math.abs(diff)/prevExp*100),up=diff>0;
@@ -1571,7 +1585,7 @@ function renderLedger(){
   }else cmpEl.innerHTML="";
   // 카테고리별 지출 그래프 (선택 월)
   const expByCat={};
-  month.filter(x=>x.type!=="income").forEach(x=>{const k=x.cat||"etc";expByCat[k]=(expByCat[k]||0)+(+x.amount||0);});
+  month.filter(x=>x.type!=="income"&&x.type!=="transfer").forEach(x=>{const k=x.cat||"etc";expByCat[k]=(expByCat[k]||0)+(+x.amount||0);});
   const catEntries=Object.entries(expByCat).sort((a,b)=>b[1]-a[1]);
   const totExp=catEntries.reduce((s,e)=>s+e[1],0);
   const chartEl=document.getElementById("ledChart");
@@ -1585,7 +1599,7 @@ function renderLedger(){
   }
   // 카드/은행별 사용 (선택 월, 지출 기준) — 일괄 확인
   const byCard={};
-  month.filter(x=>x.type!=="income").forEach(x=>{const k=x.card||"(미지정)";if(!byCard[k])byCard[k]={sum:0,cnt:0};byCard[k].sum+=(+x.amount||0);byCard[k].cnt++;});
+  month.filter(x=>x.type!=="income"&&x.type!=="transfer").forEach(x=>{const k=x.card||"(미지정)";if(!byCard[k])byCard[k]={sum:0,cnt:0};byCard[k].sum+=(+x.amount||0);byCard[k].cnt++;});
   const cardEntries=Object.entries(byCard).sort((a,b)=>b[1].sum-a[1].sum);
   const totCard=cardEntries.reduce((s,e)=>s+e[1].sum,0);
   const cardChartEl=document.getElementById("ledCardChart");
@@ -1626,7 +1640,7 @@ function renderLedger(){
   if(ledFilter!=="all"){
     const cf=ledFilter, byMonth={};
     activeLed().forEach(x=>{
-      if(!x.date||x.type==="income")return;
+      if(!x.date||x.type==="income"||x.type==="transfer")return;
       const isCard=cf==="(미지정)"?!x.card:x.card===cf;
       if(!isCard)return;
       const m=x.date.slice(0,7);
@@ -1647,6 +1661,18 @@ function renderLedger(){
   }else{
     rows.forEach(x=>{
       if(x.date!==lastDate){lastDate=x.date;html+=`<div class="led-daygrp">${fmtKDate(x.date)}</div>`;}
+      if(x.type==="transfer"){
+        html+=`<div class="led-row" data-id="${x.id}">
+        <div class="led-bar" style="background:#64748b"></div>
+        <div class="led-info">
+          <div class="led-mch">🔄 ${esc(acctName(x.acct)||"?")} → ${esc(acctName(x.toAcct)||"?")}</div>
+          <div class="led-sub"><span style="color:var(--muted)">계좌 이체</span>${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
+        </div>
+        <div class="led-amt" style="color:var(--muted)">${wonFmt(+x.amount||0)}</div>
+        <button class="led-del" data-id="${x.id}">✕</button>
+      </div>`;
+        return;
+      }
       const col=cardColor(x.card);const sign=x.type==="income"?"+":"-";
       const cat=LED_CATS[x.cat];
       html+=`<div class="led-row" data-id="${x.id}">
@@ -1674,6 +1700,18 @@ function renderLedCatPick(){
 function setLedType(t){
   curLedType=t;
   document.getElementById("ledTypeSeg").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+  const isT=t==="transfer";
+  // 이체 모드: 카테고리·카드입력·할부·가맹점 숨김 / 입금계좌 표시 / 출금계좌 라벨
+  ["ledRowCat","ledRowCard","ledRowInst","ledRowMch"].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isT?"none":"";});
+  const toRow=document.getElementById("ledRowTo");if(toRow)toRow.style.display=isT?"":"none";
+  const acctLbl=document.getElementById("ledAcctLabel");
+  if(acctLbl)acctLbl.innerHTML=isT?'📤 출금 계좌 <small style="color:var(--muted);font-weight:400">— 돈을 보내는 통장</small>':'💳 결제수단 / 계좌 <small style="color:var(--muted);font-weight:400">— 등록한 카드·통장 선택 (잔액·사용액 자동 반영)</small>';
+  if(isT){ // 이체는 카테고리 보정 불필요, 입금계좌 옵션 채움(현재 선택 보존)
+    const cur=(document.getElementById("ledAcct")||{}).value||"";
+    const curTo=(document.getElementById("ledAcctTo")||{}).value||"";
+    fillLedAcctOptions(cur,curTo);
+    return;
+  }
   // 유형 바뀌면 호환되는 카테고리로 보정
   const valid=catList(t).map(([k])=>k);
   if(valid.indexOf(curLedCat)<0)curLedCat=t==="income"?"income_etc":"etc";
@@ -1684,19 +1722,29 @@ const ACCT_KINDS={bank:{name:"입출금 통장",icon:"🏦",asset:true},check:{n
 function acctKind(a){return (a&&a.kind)||"bank";}
 function acctName(id){const a=(state.accounts||[]).find(x=>x.id===id);return a?a.name:"";}
 function applyAcctEffect(e,sign){ // sign:+1 적용 / -1 되돌림
-  if(!e||!e.acct)return;
+  if(!e)return;
+  if(e.type==="transfer"){ // 이체: 출금계좌 잔액↓, 입금계좌 잔액↑ (총자산 불변)
+    const base=(+e.amount||0);
+    const from=(state.accounts||[]).find(x=>x.id===e.acct);
+    const to=(state.accounts||[]).find(x=>x.id===e.toAcct);
+    if(from){from.balance=(+from.balance||0)-sign*base;from.updatedAt=Date.now();}
+    if(to){to.balance=(+to.balance||0)+sign*base;to.updatedAt=Date.now();}
+    return;
+  }
+  if(!e.acct)return;
   const a=(state.accounts||[]).find(x=>x.id===e.acct);if(!a)return;
   const base=(+e.amount||0);
   // 신용카드: 지출=사용액↑, 수입/상환=사용액↓  /  통장·체크: 수입=잔액↑, 지출=잔액↓
   const d=acctKind(a)==="credit"?(e.type==="income"?-base:base):(e.type==="income"?base:-base);
   a.balance=(+a.balance||0)+sign*d;a.updatedAt=Date.now();
 }
-function fillLedAcctOptions(selId){
-  const sel=document.getElementById("ledAcct");if(!sel)return;
+function fillLedAcctOptions(selId,selToId){
   const accts=state.accounts||[];
-  sel.innerHTML=`<option value="">(선택 안 함)</option>`+
-    accts.map(a=>{const k=acctKind(a),m=ACCT_KINDS[k]||ACCT_KINDS.bank,credit=k==="credit";return `<option value="${a.id}">${m.icon} ${esc(a.name||"계좌")} · ${credit?"사용 ":""}${wonFmt(+a.balance||0)}원</option>`;}).join("");
-  sel.value=selId||"";
+  const opts=accts.map(a=>{const k=acctKind(a),m=ACCT_KINDS[k]||ACCT_KINDS.bank,credit=k==="credit";return `<option value="${a.id}">${m.icon} ${esc(a.name||"계좌")} · ${credit?"사용 ":""}${wonFmt(+a.balance||0)}원</option>`;}).join("");
+  const sel=document.getElementById("ledAcct");
+  if(sel){sel.innerHTML=`<option value="">(선택 안 함)</option>`+opts;sel.value=selId||"";}
+  const selTo=document.getElementById("ledAcctTo");
+  if(selTo){selTo.innerHTML=`<option value="">(선택)</option>`+opts;selTo.value=selToId||"";}
 }
 function openLedgerAdd(prefill){
   editLedId=null;
@@ -1727,36 +1775,42 @@ function openLedgerEdit(id){
   document.getElementById("ledInstallment").value=x.installment||0;
   document.getElementById("ledMch").value=x.merchant||"";
   document.getElementById("ledMemo").value=x.memo||"";
-  fillLedAcctOptions(x.acct||"");
+  fillLedAcctOptions(x.acct||"",x.toAcct||"");
   openOverlay("ledgerSheet");
 }
 function saveLedger(){
   const amount=parseInt(document.getElementById("ledAmt").value,10);
   if(!amount||amount<=0){toast("금액을 입력해주세요");return;}
   const date=document.getElementById("ledDate").value||todayStr();
-  const card=document.getElementById("ledCard").value.trim();
-  const installment=parseInt(document.getElementById("ledInstallment").value,10)||0;
-  const merchant=document.getElementById("ledMch").value.trim();
   const memo=document.getElementById("ledMemo").value.trim();
   const acct=(document.getElementById("ledAcct")||{}).value||"";
-  const cat=curLedCat;
+  const isT=curLedType==="transfer";
+  const toAcct=isT?((document.getElementById("ledAcctTo")||{}).value||""):"";
+  if(isT){
+    if(!acct||!toAcct){toast("출금·입금 계좌를 모두 선택해주세요");return;}
+    if(acct===toAcct){toast("출금과 입금 계좌가 같아요");return;}
+  }
+  const card=isT?"":document.getElementById("ledCard").value.trim();
+  const installment=isT?0:(parseInt(document.getElementById("ledInstallment").value,10)||0);
+  const merchant=isT?(memo||`${acctName(acct)} → ${acctName(toAcct)}`):document.getElementById("ledMch").value.trim();
+  const cat=isT?"transfer":curLedCat;
   let acctMsg="";
   if(editLedId){
     const x=state.ledger.find(e=>e.id===editLedId);
     if(x){
       applyAcctEffect(x,-1); // 기존 효과 되돌림
-      Object.assign(x,{amount,date,card,installment,merchant,memo,cat,acct,type:curLedType,updatedAt:Date.now()});
+      Object.assign(x,{amount,date,card,installment,merchant,memo,cat,acct,toAcct,type:curLedType,updatedAt:Date.now()});
       applyAcctEffect(x,1); // 새 효과 적용
-      if(acct)acctMsg=` · ${acctName(acct)} 잔액 반영`;
+      acctMsg=isT?` · 두 계좌 잔액 반영`:(acct?` · ${acctName(acct)} 잔액 반영`:"");
     }
   }else{
-    const e={id:Date.now()+""+Math.floor(Math.random()*999),amount,date,card,installment,merchant,memo,cat,acct,type:curLedType,createdAt:Date.now()};
+    const e={id:Date.now()+""+Math.floor(Math.random()*999),amount,date,card,installment,merchant,memo,cat,acct,toAcct,type:curLedType,createdAt:Date.now()};
     state.ledger.push(e);
     applyAcctEffect(e,1);
-    if(acct)acctMsg=` · ${acctName(acct)} ${curLedType==="income"?"입금":"출금"} 반영`;
+    acctMsg=isT?` · ${acctName(acct)} → ${acctName(toAcct)} 반영`:(acct?` · ${acctName(acct)} ${curLedType==="income"?"입금":"출금"} 반영`:"");
   }
-  if(acct)recordAssetSnapshot();
-  save();closeOverlay("ledgerSheet");renderLedger();toast((editLedId?"수정했어요":"내역 추가 완료")+acctMsg);
+  if(acct||toAcct)recordAssetSnapshot();
+  save();closeOverlay("ledgerSheet");renderLedger();toast((editLedId?"수정했어요":(isT?"이체 완료":"내역 추가 완료"))+acctMsg);
 }
 function delLedger(id){
   if(confirm("이 내역을 삭제할까요?")){
