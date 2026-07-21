@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-07-21b-->
+<!--APPVER:v2026-07-21c-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -317,10 +317,10 @@
   .mv-list{display:flex;flex-direction:column;gap:4px}
   .mv-drow{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 13px;cursor:pointer}
   .mv-drow:active{transform:scale(.99)}
-  .mv-drow.empty{background:transparent;border-color:transparent;padding:3px 13px;opacity:.55}
   .mv-drow.today{border-color:var(--accent);border-width:2px}
+  .mv-week{font-size:12px;font-weight:700;color:var(--accent2);margin:10px 2px 2px}
+  .mv-week small{color:var(--muted);font-weight:500}
   .mv-dhead{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
-  .mv-drow.empty .mv-dhead{font-size:11px;font-weight:600;color:var(--muted)}
   .mv-dhead .dnum{min-width:52px}
   .mv-dhead.sun .dnum{color:#f87171}.mv-dhead.sat .dnum{color:#60a5fa}.mv-dhead.hol .dnum{color:#ef4444}
   .mv-dhead .today-badge{background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px}
@@ -484,6 +484,7 @@
       <button class="icon-btn mv-today-btn" id="mvTodayBtn">오늘</button>
     </div>
   </div>
+  <div class="filter-row" id="mvFilterRow"></div>
   <div class="mv-list" id="mvList"></div>
 </div>
 
@@ -767,7 +768,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-07-21b";
+const APP_VERSION="v2026-07-21c";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -1969,33 +1970,63 @@ function parseAndAddSms(){
 }
 
 /* ---------- 월 전체 보기 (일별 세로 리스트/아젠다형) ---------- */
+/* 용도(카테고리) 필터 — 일간 뷰 filter-row와 같은 단일선택+[전체] 관행, 월 뷰에만 적용 */
+let mvFilter=localStorage.getItem("mv.filter")||"all";
+if(mvFilter!=="all"&&!CATS[mvFilter])mvFilter="all"; // 저장값이 낡은 카테고리면 복구
+function mvCatOf(t){return CATS[t.cat]?t.cat:"etc";} // 카테고리 없는 항목은 "기타"로 귀속(누락 금지)
+function renderMvFilters(){
+  const all=`<div class="chip ${mvFilter==='all'?'active':''}" data-f="all">전체</div>`;
+  const cats=Object.entries(CATS).map(([k,c])=>
+    `<div class="chip ${mvFilter===k?'active':''}" data-f="${k}"><span class="swatch" style="background:${c.hex}"></span>${c.name}</div>`).join("");
+  const row=document.getElementById("mvFilterRow");
+  row.innerHTML=all+cats;
+  row.querySelectorAll(".chip").forEach(el=>el.onclick=()=>{
+    mvFilter=el.dataset.f;
+    try{localStorage.setItem("mv.filter",mvFilter);}catch(e){}
+    renderMvFilters();renderMonthView();
+  });
+}
 function renderMonthView(){
   document.getElementById("mvMonth").textContent=`${mvY}년 ${mvM+1}월`;
   const daysInM=new Date(mvY,mvM+1,0).getDate();
+  const startDow=new Date(mvY,mvM,1).getDay(); // 주 시작=일요일 (앱 캘린더 관행)
   const tStr=todayStr();
   const wNames=["일","월","화","수","목","금","토"];
-  let html="";
+  // 일정(필터 적용) 있는 날만 수집 — 빈 날은 리스트에서 완전 제외
+  const days=[];
   for(let d=1;d<=daysInM;d++){
-    const dt=new Date(mvY,mvM,d);const ds=ymd(dt);const dow=dt.getDay();
-    const hol=holidayOf(ds);
-    const hasDiary=state.diary[ds]&&(state.diary[ds].text||(state.diary[ds].photos&&state.diary[ds].photos.length));
-    const tasks=tasksOn(ds).slice().sort((a,b)=>(a.time||"99").localeCompare(b.time||"99"));
-    const isToday=ds===tStr;
-    const itemsHtml=tasks.map(t=>{
+    const dt=new Date(mvY,mvM,d);const ds=ymd(dt);
+    let tasks=tasksOn(ds).slice().sort((a,b)=>(a.time||"99").localeCompare(b.time||"99"));
+    if(mvFilter!=="all")tasks=tasks.filter(t=>mvCatOf(t)===mvFilter);
+    if(tasks.length)days.push({d,ds,dow:dt.getDay(),tasks});
+  }
+  let html="",lastWeek=-1;
+  days.forEach(o=>{
+    const week=Math.floor((o.d-1+startDow)/7); // 1일이 속한 주=1주차(0-base)
+    if(week!==lastWeek){
+      lastWeek=week;
+      const ws=Math.max(1,week*7-startDow+1),we=Math.min(daysInM,week*7-startDow+7); // 달 안으로 클리핑
+      html+=`<div class="mv-week">${week+1}주차 <small>(${mvM+1}/${ws}~${mvM+1}/${we})</small></div>`;
+    }
+    const hol=holidayOf(o.ds);
+    const hasDiary=state.diary[o.ds]&&(state.diary[o.ds].text||(state.diary[o.ds].photos&&state.diary[o.ds].photos.length));
+    const isToday=o.ds===tStr;
+    const itemsHtml=o.tasks.map(t=>{
       const cc=CATS[t.cat]||CATS.etc;
-      const dn=isDone(t,ds);
+      const dn=isDone(t,o.ds);
       return `<div class="mv-item${dn?' done':''}"><span class="mdot" style="background:${cc.hex}"></span><span class="mtitle">${esc(t.title)}</span>${t.time?`<span class="mtime">${fmtTime(t.time)}</span>`:""}</div>`;
     }).join("");
-    html+=`<div class="mv-drow ${tasks.length?'':'empty'} ${isToday?'today':''}" data-ds="${ds}"${isToday?' id="mvTodayRow"':''}>
-      <div class="mv-dhead ${dow===0?'sun':''}${dow===6?'sat':''} ${hol?'hol':''}">
-        <span class="dnum">${d} (${wNames[dow]})</span>
+    html+=`<div class="mv-drow ${isToday?'today':''}" data-ds="${o.ds}"${isToday?' id="mvTodayRow"':''}>
+      <div class="mv-dhead ${o.dow===0?'sun':''}${o.dow===6?'sat':''} ${hol?'hol':''}">
+        <span class="dnum">${o.d} (${wNames[o.dow]})</span>
         ${isToday?'<span class="today-badge">오늘</span>':''}
         ${hol?`<span class="holname">${esc(hol)}</span>`:''}
         ${hasDiary?'<span class="diarym">📔</span>':''}
       </div>
-      ${tasks.length?`<div class="mv-items">${itemsHtml}</div>`:""}
+      <div class="mv-items">${itemsHtml}</div>
     </div>`;
-  }
+  });
+  if(!days.length)html=`<div class="empty"><span class="em">🗓️</span>이 달엔 ${mvFilter!=="all"?"해당 용도 ":""}일정이 없어요.</div>`;
   document.getElementById("mvList").innerHTML=html;
   document.querySelectorAll("#mvList .mv-drow").forEach(el=>{
     el.onclick=()=>{
@@ -2006,17 +2037,28 @@ function renderMonthView(){
     };
   });
 }
+/* 오늘(또는 오늘과 가장 가까운 표시일) 행 찾기 — 자동 스크롤용 */
+function mvNearestRow(){
+  const tr=document.getElementById("mvTodayRow");if(tr)return tr;
+  const t=new Date();if(t.getFullYear()!==mvY||t.getMonth()!==mvM)return null; // 다른 달이면 스크롤 안 함
+  const td=t.getDate();let best=null,bestDiff=99;
+  document.querySelectorAll("#mvList .mv-drow").forEach(el=>{
+    const d=parseYmd(el.dataset.ds).getDate();const diff=Math.abs(d-td);
+    if(diff<bestDiff){bestDiff=diff;best=el;}
+  });
+  return best;
+}
 
 /* 캘린더 탭 안 기본↔월 전체 토글 (별도 탭 아님) */
 let calFullMode=false;
 function toggleMonthFull(on){
   calFullMode=on;
-  if(on){mvY=viewY;mvM=viewM;renderMonthView();}
+  if(on){mvY=viewY;mvM=viewM;renderMvFilters();renderMonthView();}
   document.getElementById("calView").classList.toggle("on",curTab==="cal"&&!on);
   document.getElementById("monthView").classList.toggle("on",curTab==="cal"&&on);
   window.scrollTo(0,0);
-  // 진입 시 오늘 위치로 자동 스크롤 (오늘이 보이는 달일 때)
-  if(on){const tr=document.getElementById("mvTodayRow");if(tr)setTimeout(()=>tr.scrollIntoView({block:"center"}),50);}
+  // 진입 시 오늘(제외됐으면 가장 가까운 표시일) 위치로 자동 스크롤
+  if(on){const tr=mvNearestRow();if(tr)setTimeout(()=>tr.scrollIntoView({block:"center"}),50);}
 }
 
 /* ---------- memo ---------- */
@@ -2029,7 +2071,7 @@ function switchTab(tab){
   // 월 전체 토글 상태 반영: 캘린더 탭 + 월 전체 모드일 때만 monthView 표시
   document.getElementById("monthView").classList.toggle("on",tab==="cal"&&calFullMode);
   if(tab==="cal"&&calFullMode)document.getElementById("calView").classList.remove("on");
-  if(tab==="cal"&&calFullMode)renderMonthView();
+  if(tab==="cal"&&calFullMode){renderMvFilters();renderMonthView();}
   if(tab==="memo")renderMemos();
   else if(tab==="diary")renderDiaryList();
   else if(tab==="ledger")renderLedger();
