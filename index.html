@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-07-21d-->
+<!--APPVER:v2026-07-21e-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -699,7 +699,7 @@
     <input type="date" id="ledDate">
     <label class="fld" id="ledAcctLabel">💳 결제수단 / 계좌 <small style="color:var(--muted);font-weight:400">— 등록한 카드·통장 선택 (잔액·사용액 자동 반영)</small></label>
     <select id="ledAcct"><option value="">(선택 안 함)</option></select>
-    <div id="ledRowTo" style="display:none"><label class="fld">📥 입금 계좌 <small style="color:var(--muted);font-weight:400">— 돈을 받는 통장</small></label>
+    <div id="ledRowTo" style="display:none"><label class="fld">📥 입금 계좌 <small style="color:var(--muted);font-weight:400">— 돈을 받는 통장 · 💳 신용카드를 선택하면 카드대금 납부(지출 집계 제외·사용액 차감)</small></label>
     <select id="ledAcctTo"><option value="">(선택)</option></select></div>
     <div id="ledRowCard"><label class="fld">카드/결제수단 직접 입력 <small style="color:var(--muted);font-weight:400">(위에서 선택 시 자동)</small></label>
     <input id="ledCard" placeholder="예: 신한카드, 현금" autocomplete="off" list="ledCardList" maxlength="20">
@@ -768,7 +768,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-07-21d";
+const APP_VERSION="v2026-07-21e";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -1527,10 +1527,10 @@ function renderLedgerDayBody(ds){
   list.innerHTML=rows.map(x=>{
     if(x.type==="transfer"){
       return `<div class="led-row" data-id="${x.id}">
-      <div class="led-bar" style="background:#64748b"></div>
+      <div class="led-bar" style="background:${x.cardPay?'#8b5cf6':'#64748b'}"></div>
       <div class="led-info">
-        <div class="led-mch">🔄 ${esc(acctName(x.acct)||"?")} → ${esc(acctName(x.toAcct)||"?")}</div>
-        <div class="led-sub"><span style="color:var(--muted)">계좌 이체</span>${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
+        <div class="led-mch">${x.cardPay?'💳':'🔄'} ${esc(acctName(x.acct)||"?")} → ${esc(acctName(x.toAcct)||"?")}</div>
+        <div class="led-sub"><span style="color:var(--muted)">${x.cardPay?'카드대금 납부 · 지출 집계 제외':'계좌 이체'}</span>${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
       </div>
       <div class="led-amt" style="color:var(--muted)">${wonFmt(+x.amount||0)}</div>
       <button class="led-del" data-id="${x.id}">✕</button>
@@ -1663,7 +1663,7 @@ function renderLedger(){
   else{
     chartEl.innerHTML=`<div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:13px;font-weight:700">
-        <span>${+mP.slice(5,7)}월 총지출 <small style="color:var(--muted);font-weight:400">· 수입·이체 제외 · 탭하면 해당 내역만</small></span>
+        <span>${+mP.slice(5,7)}월 총지출 <small style="color:var(--muted);font-weight:400">· 수입·이체·카드대금 제외 · 탭하면 해당 내역만</small></span>
         <b style="color:var(--red)">${wonFmt(totExp)}원</b>
       </div>`+catEntries.map(([k,o])=>{
       const c=LED_CATS[k]||{name:k,icon:"💳",color:"#94a3b8"};
@@ -1739,10 +1739,10 @@ function renderLedger(){
       if(x.date!==lastDate){lastDate=x.date;html+=`<div class="led-daygrp">${fmtKDate(x.date)}</div>`;}
       if(x.type==="transfer"){
         html+=`<div class="led-row" data-id="${x.id}">
-        <div class="led-bar" style="background:#64748b"></div>
+        <div class="led-bar" style="background:${x.cardPay?'#8b5cf6':'#64748b'}"></div>
         <div class="led-info">
-          <div class="led-mch">🔄 ${esc(acctName(x.acct)||"?")} → ${esc(acctName(x.toAcct)||"?")}</div>
-          <div class="led-sub"><span style="color:var(--muted)">계좌 이체</span>${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
+          <div class="led-mch">${x.cardPay?'💳':'🔄'} ${esc(acctName(x.acct)||"?")} → ${esc(acctName(x.toAcct)||"?")}</div>
+          <div class="led-sub"><span style="color:var(--muted)">${x.cardPay?'카드대금 납부 · 지출 집계 제외':'계좌 이체'}</span>${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
         </div>
         <div class="led-amt" style="color:var(--muted)">${wonFmt(+x.amount||0)}</div>
         <button class="led-del" data-id="${x.id}">✕</button>
@@ -1805,7 +1805,9 @@ function applyAcctEffect(e,sign){ // sign:+1 적용 / -1 되돌림
     const from=(state.accounts||[]).find(x=>x.id===e.acct);
     const to=(state.accounts||[]).find(x=>x.id===e.toAcct);
     if(from){from.balance=(+from.balance||0)-sign*base;from.updatedAt=Date.now();}
-    if(to){to.balance=(+to.balance||0)+sign*base;to.updatedAt=Date.now();}
+    // 카드대금 납부(cardPay): 입금 대상=신용카드 → 사용액 감소 (일반 이체는 잔액 증가)
+    // ⚠️플래그 기준(계좌종류 재조회 아님) — cardPay 도입 전 옛 이체 건의 수정/삭제 원복 방향 보존
+    if(to){to.balance=(+to.balance||0)+(e.cardPay?-1:1)*sign*base;to.updatedAt=Date.now();}
     return;
   }
   if(!e.acct)return;
@@ -1941,26 +1943,30 @@ function saveLedger(){
   }
   const card=isT?"":document.getElementById("ledCard").value.trim();
   const installment=isT?0:(parseInt(document.getElementById("ledInstallment").value,10)||0);
-  const merchant=isT?(memo||`${acctName(acct)} → ${acctName(toAcct)}`):document.getElementById("ledMch").value.trim();
+  // 카드대금 납부 = 이체의 입금 대상이 신용카드 (지출 집계 제외·통장잔액↓·카드사용액↓)
+  const toA=isT?(state.accounts||[]).find(a=>a.id===toAcct):null;
+  const cardPay=!!(isT&&toA&&acctKind(toA)==="credit");
+  const merchant=isT?(memo||(cardPay?`${acctName(toAcct)} 카드대금 (${acctName(acct)})`:`${acctName(acct)} → ${acctName(toAcct)}`)):document.getElementById("ledMch").value.trim();
   const cat=isT?"transfer":curLedCat;
   let acctMsg="";
   if(editLedId){
     const x=state.ledger.find(e=>e.id===editLedId);
     if(x){
       applyAcctEffect(x,-1);
-      Object.assign(x,{amount,date,card,installment,merchant,memo,cat,acct,toAcct,type:curLedType,updatedAt:Date.now(),usdOrig:usdOrig||undefined,usdRate:usdRate||undefined});
+      Object.assign(x,{amount,date,card,installment,merchant,memo,cat,acct,toAcct,type:curLedType,updatedAt:Date.now(),usdOrig:usdOrig||undefined,usdRate:usdRate||undefined,cardPay:cardPay||undefined});
+      if(!cardPay)delete x.cardPay;
       applyAcctEffect(x,1);
       acctMsg=isT?` · 두 계좌 잔액 반영`:(acct?` · ${acctName(acct)} 잔액 반영`:"");
     }
   }else{
-    const e={id:Date.now()+""+Math.floor(Math.random()*999),amount,date,card,installment,merchant,memo,cat,acct,toAcct,type:curLedType,createdAt:Date.now(),usdOrig:usdOrig||undefined,usdRate:usdRate||undefined};
+    const e={id:Date.now()+""+Math.floor(Math.random()*999),amount,date,card,installment,merchant,memo,cat,acct,toAcct,type:curLedType,createdAt:Date.now(),usdOrig:usdOrig||undefined,usdRate:usdRate||undefined,cardPay:cardPay||undefined};
     state.ledger.push(e);
     applyAcctEffect(e,1);
-    acctMsg=isT?` · ${acctName(acct)} → ${acctName(toAcct)} 반영`:(acct?` · ${acctName(acct)} ${curLedType==="income"?"입금":"출금"} 반영`:"");
+    acctMsg=cardPay?` · ${acctName(acct)} 출금 · ${acctName(toAcct)} 사용액 차감`:(isT?` · ${acctName(acct)} → ${acctName(toAcct)} 반영`:(acct?` · ${acctName(acct)} ${curLedType==="income"?"입금":"출금"} 반영`:""));
   }
   if(acct||toAcct)recordAssetSnapshot();
   const usdMsg=usdOrig?` ($${usdOrig} @${wonFmt(Math.round(usdRate))})`:"";
-  save();closeOverlay("ledgerSheet");renderLedger();toast((editLedId?"수정했어요":(isT?"이체 완료":"내역 추가 완료"))+acctMsg+usdMsg);
+  save();closeOverlay("ledgerSheet");renderLedger();toast((editLedId?"수정했어요":(cardPay?"카드대금 납부 기록 완료 (지출 집계 제외)":isT?"이체 완료":"내역 추가 완료"))+acctMsg+usdMsg);
 }
 function delLedger(id){
   if(confirm("이 내역을 삭제할까요?")){
