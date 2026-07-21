@@ -761,6 +761,8 @@
     <div class="grab"></div>
     <h3>📷 캡처 인식 결과 <small id="capCount" style="font-size:12px;color:var(--muted);font-weight:400"></small></h3>
     <p style="font-size:12px;color:var(--muted);margin:0 0 10px">체크 해제 = 저장 안 함. 용도를 바꾸면 다음부터 같은 적요는 자동 분류돼요.</p>
+    <label class="fld" style="margin-top:0">🏦 이 캡처는 어느 통장 내역인가요? <small style="color:var(--muted);font-weight:400">— 선택하면 잔액에 반영돼요</small></label>
+    <select id="capAcct" style="margin-bottom:10px"></select>
     <div id="capRowsBox" style="max-height:52vh;overflow-y:auto"></div>
     <button class="save-btn" id="capSaveBtn">선택한 내역 저장</button>
   </div>
@@ -2081,6 +2083,7 @@ function parseAndAddSms(){
 /* ===== 캡처 AI 인식 (은행앱 화면 → 거래행 추출, Gemini 비전) ===== */
 const CAP_KEY_LS="ledger.aiKey";           // API 키 (이 기기 localStorage에만 — 코드/커밋 포함 금지)
 const CAP_MMAP_LS="ledMerchantMap";        // 적요→용도 학습맵
+const CAP_ACCT_LS="ledger.capAcct";        // 캡처 저장 시 마지막 선택 계좌 기억
 const CAP_MODEL="gemini-3.5-flash";
 function capGetKey(){try{return (localStorage.getItem(CAP_KEY_LS)||"").trim();}catch(e){return "";}}
 function capMmapGet(){try{return JSON.parse(localStorage.getItem(CAP_MMAP_LS)||"{}");}catch(e){return {};}}
@@ -2127,6 +2130,7 @@ async function capGemini(b64){
 - desc: 적요/거래처명 (금액·잔액·시각 제외한 상호명 위주)
 - amount: 거래금액 원화 정수 (쉼표 제거, 잔액 아님)
 - direction: 입금이면 "in", 출금/결제/이체출금이면 "out"
+- bank: 화면에 은행·카드사·앱 이름이 보이면 그 이름(최상위 필드, 예: "국민은행"), 안 보이면 null
 잔액 표시·이월·소계·헤더 행은 제외. 거래 행이 없으면 rows를 빈 배열로.`},
       {inline_data:{mime_type:"image/jpeg",data:b64}}
     ]}],
@@ -2134,7 +2138,7 @@ async function capGemini(b64){
       response_mime_type:"application/json",
       response_schema:{type:"OBJECT",properties:{rows:{type:"ARRAY",items:{type:"OBJECT",properties:{
         date:{type:"STRING"},desc:{type:"STRING"},amount:{type:"INTEGER"},direction:{type:"STRING",enum:["in","out"]}
-      },required:["date","desc","amount","direction"]}}},required:["rows"]},
+      },required:["date","desc","amount","direction"]}},bank:{type:"STRING",nullable:true}},required:["rows"]},
       temperature:0
     }
   };
@@ -2149,13 +2153,13 @@ async function capGemini(b64){
   const d=await resp.json();
   const txt=(((d.candidates||[])[0]||{}).content||{}).parts?.[0]?.text||"";
   let parsed;try{parsed=JSON.parse(txt);}catch(e){throw "AI 응답을 해석하지 못했어요 — 캡처가 선명한지 확인 후 다시 시도해주세요";}
-  return Array.isArray(parsed.rows)?parsed.rows:[];
+  return {rows:Array.isArray(parsed.rows)?parsed.rows:[],bank:(typeof parsed.bank==="string"&&parsed.bank.trim())?parsed.bank.trim():null};
 }
 /* 중복 감지: 동일 날짜+금액+적요 기존재 */
 function capIsDup(r){
   return activeLed().some(x=>x.date===r.date&&Math.abs(+x.amount)===Math.abs(+r.amount)&&capNorm(x.merchant)===capNorm(r.desc));
 }
-let capRows=[];
+let capRows=[],capBank=null;
 function capUpdateKeyUI(){
   const has=!!capGetKey();
   document.getElementById("capKeyBox").style.display=has?"none":"";
@@ -2165,14 +2169,15 @@ function capUpdateKeyUI(){
 async function capHandleFiles(files){
   if(!capGetKey()){capUpdateKeyUI();toast("AI 인식 키를 먼저 저장해주세요");return;}
   const st=document.getElementById("capStatus");
-  capRows=[];
+  capRows=[];capBank=null;
   let i=0;
   for(const f of files){
     i++;st.textContent=`인식 중… (${i}/${files.length})`;
     try{
       const b64=await capResize(f);
-      const rows=await capGemini(b64);
-      rows.forEach(r=>{
+      const res=await capGemini(b64);
+      if(res.bank&&!capBank)capBank=res.bank; // 첫 캡처에서 인식된 은행명 → 계좌 자동 매칭에 사용
+      res.rows.forEach(r=>{
         if(!r||!r.amount)return;
         const date=/^\d{4}-\d{2}-\d{2}$/.test(r.date||"")?r.date:todayStr();
         const direction=r.direction==="in"?"in":"out";
@@ -2184,7 +2189,23 @@ async function capHandleFiles(files){
     }catch(err){st.textContent=String(err);toast(String(err));if(!capRows.length)return;}
   }
   st.textContent=capRows.length?`인식 완료 — ${capRows.length}건`:"거래 행을 찾지 못했어요 — 캡처가 거래내역 화면인지 확인해주세요";
-  if(capRows.length){renderCapPreview();openOverlay("capSheet");}
+  if(capRows.length){capFillAcctOptions(capBank);renderCapPreview();openOverlay("capSheet");}
+}
+/* 캡처 저장 대상 계좌 드롭다운 — 수동 입력 시트(fillLedAcctOptions)와 동일 소스·표기.
+   ①캡처에서 인식된 은행명과 부분일치(공백 무시)하는 계좌 자동 선택 → ②실패 시 마지막 선택 기억값 */
+function capFillAcctOptions(detectedBank){
+  const el=document.getElementById("capAcct");if(!el)return;
+  const accts=state.accounts||[];
+  const opts=accts.map(a=>{const k=acctKind(a),m=ACCT_KINDS[k]||ACCT_KINDS.bank,credit=k==="credit";return `<option value="${a.id}">${m.icon} ${esc(a.name||"계좌")} · ${credit?"사용 ":""}${wonFmt(+a.balance||0)}원</option>`;}).join("");
+  el.innerHTML=`<option value="">(선택 안 함 — 잔액 반영 없음)</option>`+opts;
+  let pre="";
+  if(detectedBank){
+    const nb=String(detectedBank).replace(/\s+/g,"").toLowerCase();
+    const hit=nb?accts.find(a=>{const na=String(a.name||"").replace(/\s+/g,"").toLowerCase();return na&&(na.indexOf(nb)>=0||nb.indexOf(na)>=0);}):null;
+    if(hit)pre=hit.id;
+  }
+  if(!pre){try{const last=localStorage.getItem(CAP_ACCT_LS)||"";if(accts.some(a=>a.id===last))pre=last;}catch(e){}}
+  el.value=pre;
 }
 function renderCapPreview(){
   document.getElementById("capCount").textContent=`${capRows.length}건 · 중복 ${capRows.filter(r=>r.dup).length}건`;
@@ -2223,14 +2244,21 @@ function renderCapPreview(){
 function capSave(){
   const sel=capRows.filter(r=>r.use&&r.amount>0);
   if(!sel.length){toast("저장할 내역이 없어요 — 체크된 행이 없어요");return;}
+  const acctEl=document.getElementById("capAcct");
+  const acct=(acctEl&&acctEl.value)||"";
+  if(!acct&&!confirm("계좌 미선택 — 잔액에 반영되지 않아요. 그대로 저장할까요?"))return;
+  try{localStorage.setItem(CAP_ACCT_LS,acct);}catch(e){}
   sel.forEach(r=>{
-    state.ledger.push({id:Date.now()+""+Math.floor(Math.random()*999999),amount:r.amount,date:r.date,
-      card:"",installment:0,merchant:r.desc,memo:"",cat:r.cat,acct:"",toAcct:"",
-      type:r.direction==="in"?"income":"expense",createdAt:Date.now()});
+    const e={id:Date.now()+""+Math.floor(Math.random()*999999),amount:r.amount,date:r.date,
+      card:"",installment:0,merchant:r.desc,memo:"",cat:r.cat,acct,toAcct:"",
+      type:r.direction==="in"?"income":"expense",createdAt:Date.now()};
+    state.ledger.push(e);
+    applyAcctEffect(e,1); // 수동 저장(saveLedger)과 동일한 잔액 반영 경로 — 입금+/출금-, 신용카드 사용액 규칙 포함. acct 없으면 내부 no-op
   });
+  if(acct)recordAssetSnapshot();
   save();closeOverlay("capSheet");renderLedger();
   document.getElementById("capStatus").textContent="";
-  toast(`캡처에서 ${sel.length}건 저장 완료`);
+  toast(`캡처에서 ${sel.length}건 저장 완료`+(acct?` · ${acctName(acct)} 잔액 반영`:""));
 }
 
 /* ---------- 월 전체 보기 (일별 세로 리스트/아젠다형) ---------- */
