@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-06-19a-->
+<!--APPVER:v2026-07-21a-->
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -304,6 +304,31 @@
   .led-sec.collapsed .led-sec-arr{transform:rotate(-90deg)}
   .led-sec-b{margin-top:8px}
   .led-sec.collapsed .led-sec-b{display:none}
+  /* ===== 달러 통화 토글 ===== */
+  #ledCurrSeg button.on{background:var(--accent)!important;color:#fff!important}
+  #ledCurrSeg button{background:none!important;color:var(--muted)!important;border:none!important;border-radius:8px!important;padding:9px 10px!important;font-size:13px!important;font-weight:700!important;cursor:pointer!important}
+  /* ===== 월 전체 보기 ===== */
+  .mv-head{display:flex;align-items:center;justify-content:space-between;margin:6px 0 10px}
+  .mv-nav{display:flex;align-items:center;gap:6px}
+  .mv-month{font-size:17px;font-weight:700;min-width:130px;text-align:center}
+  .mv-nav button{background:var(--surface2);border:1px solid var(--line);color:var(--text);width:34px;height:34px;border-radius:10px;font-size:16px;cursor:pointer}
+  .mv-nav button:active{transform:scale(.92)}
+  .mv-today-btn{font-size:12px;padding:0 12px;width:auto!important}
+  .mv-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+  .mv-dow{font-size:11px;color:var(--muted);text-align:center;padding:4px 0;font-weight:600}
+  .mv-dow.sun{color:#f87171}.mv-dow.sat{color:#60a5fa}
+  .mv-day{background:var(--surface);border:1px solid transparent;border-radius:9px;padding:4px 3px 4px;cursor:pointer;position:relative;min-height:72px;overflow:hidden;display:flex;flex-direction:column}
+  .mv-day:active{transform:scale(.96)}
+  .mv-day.out{opacity:.3;background:transparent}
+  .mv-day.today{border-color:var(--accent)}
+  .mv-dn{font-size:12px;font-weight:700;text-align:center;line-height:1.3}
+  .mv-day.sun .mv-dn{color:#f87171}.mv-day.sat .mv-dn{color:#60a5fa}.mv-day.hol .mv-dn{color:#ef4444}
+  .mv-day.today .mv-dn{background:var(--accent);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:11px}
+  .mv-items{display:flex;flex-direction:column;gap:1.5px;margin-top:3px;flex:1;min-width:0}
+  .mv-chip{font-size:8px;line-height:1.3;padding:1.5px 3px;border-radius:3px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+  .mv-chip.done{opacity:.5;text-decoration:line-through}
+  .mv-more{font-size:7.5px;color:var(--muted);text-align:center;margin-top:1px}
+  .mv-diary{position:absolute;top:3px;right:3px;font-size:8px}
   /* 계좌 잔액 */
   .acct-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:12px}
   .acct-head{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:10px}
@@ -352,7 +377,10 @@
       <div class="cal-month" id="calMonth"></div>
       <button id="nextM">›</button>
     </div>
-    <button class="icon-btn today-btn" id="todayBtn">오늘</button>
+    <div style="display:flex;gap:6px">
+      <button class="icon-btn today-btn" id="calModeBtn" title="월 전체 보기">🗓 월 전체</button>
+      <button class="icon-btn today-btn" id="todayBtn">오늘</button>
+    </div>
   </div>
   <div class="cal-grid" id="dowRow"></div>
   <div class="cal-grid" id="calGrid" style="margin-top:4px"></div>
@@ -438,6 +466,23 @@
   </div>
   <div class="filter-row" id="memoFilter"></div>
   <div id="memoList"></div>
+</div>
+
+<!-- 월 전체 보기 (캘린더 탭 안 토글 — 별도 탭 아님) -->
+<div class="wrap view" id="monthView">
+  <div class="mv-head">
+    <div class="mv-nav">
+      <button id="mvPrevM">‹</button>
+      <div class="mv-month" id="mvMonth"></div>
+      <button id="mvNextM">›</button>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button class="icon-btn mv-today-btn" id="mvBackBtn" title="기본 보기로">📅 기본</button>
+      <button class="icon-btn mv-today-btn" id="mvTodayBtn">오늘</button>
+    </div>
+  </div>
+  <div class="mv-grid" id="mvDowRow"></div>
+  <div class="mv-grid" id="mvGrid" style="margin-top:4px"></div>
 </div>
 
 <button class="fab" id="addBtn">+</button>
@@ -631,8 +676,22 @@
     </div>
     <div id="ledRowCat"><label class="fld">카테고리</label>
     <div class="led-catgrid" id="ledCatPick"></div></div>
-    <label class="fld">금액 (원)</label>
-    <input id="ledAmt" type="number" inputmode="numeric" placeholder="0" autocomplete="off">
+    <label class="fld" id="ledAmtLabel">금액 (원)</label>
+    <div style="display:flex;gap:8px;align-items:stretch">
+      <div class="seg" style="flex:0 0 auto;background:var(--surface2);border-radius:11px;padding:3px;gap:3px;display:flex" id="ledCurrSeg">
+        <button data-cur="KRW" class="on" style="flex:0 0 auto;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 10px;font-size:13px;font-weight:700;cursor:pointer">₩</button>
+        <button data-cur="USD" style="flex:0 0 auto;background:none;border:none;color:var(--muted);padding:9px 10px;font-size:13px;font-weight:700;cursor:pointer">$</button>
+      </div>
+      <input id="ledAmt" type="number" inputmode="decimal" placeholder="0" autocomplete="off" step="any" style="flex:1">
+    </div>
+    <div id="ledUsdRow" style="display:none;margin-top:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:12px;color:var(--muted);flex:0 0 auto">환율 (₩/$)</span>
+        <input id="ledUsdRate" type="number" inputmode="decimal" placeholder="환율" autocomplete="off" style="flex:1;font-size:14px" step="any">
+        <span id="ledUsdStatus" style="font-size:11px;color:var(--muted);flex:0 0 auto;white-space:nowrap"></span>
+      </div>
+      <div id="ledUsdPreview" style="font-size:12px;color:var(--accent2);margin-top:5px;font-weight:600"></div>
+    </div>
     <label class="fld">날짜</label>
     <input type="date" id="ledDate">
     <label class="fld" id="ledAcctLabel">💳 결제수단 / 계좌 <small style="color:var(--muted);font-weight:400">— 등록한 카드·통장 선택 (잔액·사용액 자동 반영)</small></label>
@@ -706,7 +765,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-06-19a";
+const APP_VERSION="v2026-07-21a";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -755,6 +814,7 @@ const KEY="myPlanner.v1";
 const APP_VER="2026.06.15-백업진단";
 let state={tasks:[],done:{},diary:{},ledger:[],accounts:[],assetHistory:[],notified:{}}; // diary: {"YYYY-MM-DD":{text,photos:[]}}; ledger:[{id,date,amount,card,merchant,memo,type,raw,createdAt}]; notified: {"taskId|date":ts}
 let viewY,viewM,selDate,editId=null,curRep="none",curCat="work",filter="all";
+let mvY,mvM; // 월 전체 보기 독립 연도/월
 let curTab="cal",editMemoId=null,curMemoPhotos=[],curMemoAudio=null,mediaRec=null,recChunks=[],recStream=null;
 let curMemoCat="etc",memoFilter="all",secretUnlocked=false;
 const MEMO_CATS={work:{name:"업무",icon:"💼",hex:"#6366f1"},personal:{name:"개인",icon:"🙂",hex:"#22c55e"},secret:{name:"시크릿",icon:"🔒",hex:"#ef4444"},etc:{name:"기타",icon:"📝",hex:"#06b6d4"}};
@@ -1474,11 +1534,12 @@ function renderLedgerDayBody(ds){
     </div>`;
     }
     const col=cardColor(x.card);const sign=x.type==="income"?"+":"-";const cat=LED_CATS[x.cat];
+    const usdTag=x.usdOrig?`<span style="color:var(--muted);font-weight:600">$${x.usdOrig} @${wonFmt(Math.round(x.usdRate))}</span>`:"";
     return `<div class="led-row" data-id="${x.id}">
       <div class="led-bar" style="background:${cat?cat.color:col}"></div>
       <div class="led-info">
         <div class="led-mch">${cat?cat.icon+" ":""}${esc(x.merchant||"(내용 없음)")}</div>
-        <div class="led-sub">${cat?`<span class="led-cattag" style="color:${cat.color}">${cat.name}</span>`:""}${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${(+x.installment>1)?`<span style="color:var(--accent2);font-weight:600">${x.installment}개월 할부·월 ${wonFmt(Math.round((+x.amount||0)/x.installment))}</span>`:""}${x.acct?`<span style="color:var(--accent2);font-weight:600">🏦 ${esc(acctName(x.acct))}</span>`:""}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
+        <div class="led-sub">${cat?`<span class="led-cattag" style="color:${cat.color}">${cat.name}</span>`:""}${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${(+x.installment>1)?`<span style="color:var(--accent2);font-weight:600">${x.installment}개월 할부·월 ${wonFmt(Math.round((+x.amount||0)/x.installment))}</span>`:""}${x.acct?`<span style="color:var(--accent2);font-weight:600">🏦 ${esc(acctName(x.acct))}</span>`:""}${usdTag}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
       </div>
       <div class="led-amt ${x.type==='income'?'income':'expense'}">${sign}${wonFmt(+x.amount||0)}</div>
       <button class="led-del" data-id="${x.id}">✕</button>
@@ -1675,11 +1736,12 @@ function renderLedger(){
       }
       const col=cardColor(x.card);const sign=x.type==="income"?"+":"-";
       const cat=LED_CATS[x.cat];
+      const usdTag2=x.usdOrig?`<span style="color:var(--muted);font-weight:600">$${x.usdOrig} @${wonFmt(Math.round(x.usdRate))}</span>`:"";
       html+=`<div class="led-row" data-id="${x.id}">
         <div class="led-bar" style="background:${cat?cat.color:col}"></div>
         <div class="led-info">
           <div class="led-mch">${cat?cat.icon+" ":""}${esc(x.merchant||"(내용 없음)")}</div>
-          <div class="led-sub">${cat?`<span class="led-cattag" style="color:${cat.color}">${cat.name}</span>`:""}${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${(+x.installment>1)?`<span style="color:var(--accent2);font-weight:600">${x.installment}개월 할부·월 ${wonFmt(Math.round((+x.amount||0)/x.installment))}</span>`:""}${x.acct?`<span style="color:var(--accent2);font-weight:600">🏦 ${esc(acctName(x.acct))}</span>`:""}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
+          <div class="led-sub">${cat?`<span class="led-cattag" style="color:${cat.color}">${cat.name}</span>`:""}${x.card?`<span class="led-cardtag" style="color:${col}">${esc(x.card)}</span>`:""}${(+x.installment>1)?`<span style="color:var(--accent2);font-weight:600">${x.installment}개월 할부·월 ${wonFmt(Math.round((+x.amount||0)/x.installment))}</span>`:""}${x.acct?`<span style="color:var(--accent2);font-weight:600">🏦 ${esc(acctName(x.acct))}</span>`:""}${usdTag2}${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
         </div>
         <div class="led-amt ${x.type==='income'?'income':'expense'}">${sign}${wonFmt(+x.amount||0)}</div>
         <button class="led-del" data-id="${x.id}">✕</button>
@@ -1752,6 +1814,7 @@ function openLedgerAdd(prefill){
   const p=prefill||{};
   curLedCat=p.cat||(p.type==="income"?"income_etc":"etc");
   setLedType(p.type||"expense");
+  setLedCur("KRW"); // 항상 원화 초기화
   document.getElementById("ledAmt").value=p.amount||"";
   document.getElementById("ledDate").value=p.date||todayStr();
   document.getElementById("ledCard").value=p.card||"";
@@ -1769,6 +1832,7 @@ function openLedgerEdit(id){
   document.getElementById("ledgerSheetTitle").textContent="내역 수정";
   curLedCat=x.cat||(x.type==="income"?"income_etc":"etc");
   setLedType(x.type||"expense");
+  setLedCur("KRW"); // 수정 시 항상 원화로 (저장된 amount는 항상 원화)
   document.getElementById("ledAmt").value=x.amount||"";
   document.getElementById("ledDate").value=x.date||todayStr();
   document.getElementById("ledCard").value=x.card||"";
@@ -1778,8 +1842,78 @@ function openLedgerEdit(id){
   fillLedAcctOptions(x.acct||"",x.toAcct||"");
   openOverlay("ledgerSheet");
 }
+/* ===== 달러→원화 환율 관리 ===== */
+const USD_RATE_KEY="ledger.usdRate";
+const USD_RATE_TS_KEY="ledger.usdRateTs";
+const USD_RATE_API="https://open.er-api.com/v6/latest/USD";
+const USD_RATE_CACHE_MS=6*60*60*1000; // 6시간 캐시
+let _curLedCur="KRW"; // 현재 입력 통화 (KRW|USD)
+function getCachedUsdRate(){
+  try{const r=parseFloat(localStorage.getItem(USD_RATE_KEY));const ts=parseInt(localStorage.getItem(USD_RATE_TS_KEY),10)||0;if(r>0&&Date.now()-ts<USD_RATE_CACHE_MS)return r;}catch(e){}
+  return null;
+}
+function setCachedUsdRate(r){try{localStorage.setItem(USD_RATE_KEY,r);localStorage.setItem(USD_RATE_TS_KEY,Date.now());}catch(e){}}
+async function fetchUsdRate(){
+  try{
+    const res=await fetch(USD_RATE_API,{cache:"no-store"});
+    const json=await res.json();
+    const r=json&&json.rates&&json.rates.KRW;
+    if(r>0){setCachedUsdRate(r);return r;}
+  }catch(e){}
+  return null;
+}
+function updateUsdPreview(){
+  const amt=parseFloat(document.getElementById("ledAmt").value)||0;
+  const rate=parseFloat(document.getElementById("ledUsdRate").value)||0;
+  const prev=document.getElementById("ledUsdPreview");
+  if(!prev)return;
+  if(amt>0&&rate>0){prev.textContent=`= 약 ${wonFmt(Math.round(amt*rate))}원 (환율 ${wonFmt(Math.round(rate))}₩/$)`;}
+  else prev.textContent="";
+}
+function setLedCur(cur){
+  _curLedCur=cur;
+  document.getElementById("ledCurrSeg").querySelectorAll("button").forEach(b=>{
+    const on=b.dataset.cur===cur;
+    b.classList.toggle("on",on);
+  });
+  const usdRow=document.getElementById("ledUsdRow");
+  const amtLabel=document.getElementById("ledAmtLabel");
+  if(cur==="USD"){
+    usdRow.style.display="";
+    if(amtLabel)amtLabel.textContent="금액 ($)";
+    document.getElementById("ledAmt").placeholder="0.00";
+    document.getElementById("ledAmt").step="0.01";
+    // 환율 로딩
+    const cached=getCachedUsdRate();
+    const rateEl=document.getElementById("ledUsdRate");
+    const statusEl=document.getElementById("ledUsdStatus");
+    if(cached){rateEl.value=cached;statusEl.textContent="캐시";updateUsdPreview();}
+    else{statusEl.textContent="불러오는 중…";}
+    fetchUsdRate().then(r=>{
+      if(r){rateEl.value=r;statusEl.textContent="실시간";updateUsdPreview();}
+      else if(!cached){rateEl.value="";statusEl.textContent="수동 입력";}
+    });
+  }else{
+    usdRow.style.display="none";
+    if(amtLabel)amtLabel.textContent="금액 (원)";
+    document.getElementById("ledAmt").placeholder="0";
+    document.getElementById("ledAmt").step="1";
+    document.getElementById("ledUsdPreview").textContent="";
+  }
+}
+/* ===== 가계부 저장 (달러 지원) ===== */
 function saveLedger(){
-  const amount=parseInt(document.getElementById("ledAmt").value,10);
+  const rawAmt=parseFloat(document.getElementById("ledAmt").value);
+  if(!rawAmt||rawAmt<=0){toast("금액을 입력해주세요");return;}
+  let amount,usdOrig=null,usdRate=null;
+  if(_curLedCur==="USD"){
+    usdRate=parseFloat(document.getElementById("ledUsdRate").value)||0;
+    if(!usdRate||usdRate<=0){toast("환율을 입력해주세요");return;}
+    amount=Math.round(rawAmt*usdRate);
+    usdOrig=rawAmt;
+  }else{
+    amount=Math.round(rawAmt);
+  }
   if(!amount||amount<=0){toast("금액을 입력해주세요");return;}
   const date=document.getElementById("ledDate").value||todayStr();
   const memo=document.getElementById("ledMemo").value.trim();
@@ -1798,19 +1932,20 @@ function saveLedger(){
   if(editLedId){
     const x=state.ledger.find(e=>e.id===editLedId);
     if(x){
-      applyAcctEffect(x,-1); // 기존 효과 되돌림
-      Object.assign(x,{amount,date,card,installment,merchant,memo,cat,acct,toAcct,type:curLedType,updatedAt:Date.now()});
-      applyAcctEffect(x,1); // 새 효과 적용
+      applyAcctEffect(x,-1);
+      Object.assign(x,{amount,date,card,installment,merchant,memo,cat,acct,toAcct,type:curLedType,updatedAt:Date.now(),usdOrig:usdOrig||undefined,usdRate:usdRate||undefined});
+      applyAcctEffect(x,1);
       acctMsg=isT?` · 두 계좌 잔액 반영`:(acct?` · ${acctName(acct)} 잔액 반영`:"");
     }
   }else{
-    const e={id:Date.now()+""+Math.floor(Math.random()*999),amount,date,card,installment,merchant,memo,cat,acct,toAcct,type:curLedType,createdAt:Date.now()};
+    const e={id:Date.now()+""+Math.floor(Math.random()*999),amount,date,card,installment,merchant,memo,cat,acct,toAcct,type:curLedType,createdAt:Date.now(),usdOrig:usdOrig||undefined,usdRate:usdRate||undefined};
     state.ledger.push(e);
     applyAcctEffect(e,1);
     acctMsg=isT?` · ${acctName(acct)} → ${acctName(toAcct)} 반영`:(acct?` · ${acctName(acct)} ${curLedType==="income"?"입금":"출금"} 반영`:"");
   }
   if(acct||toAcct)recordAssetSnapshot();
-  save();closeOverlay("ledgerSheet");renderLedger();toast((editLedId?"수정했어요":(isT?"이체 완료":"내역 추가 완료"))+acctMsg);
+  const usdMsg=usdOrig?` ($${usdOrig} @${wonFmt(Math.round(usdRate))})`:"";
+  save();closeOverlay("ledgerSheet");renderLedger();toast((editLedId?"수정했어요":(isT?"이체 완료":"내역 추가 완료"))+acctMsg+usdMsg);
 }
 function delLedger(id){
   if(confirm("이 내역을 삭제할까요?")){
@@ -1831,6 +1966,68 @@ function parseAndAddSms(){
   openLedgerAdd(r);
 }
 
+/* ---------- 월 전체 보기 ---------- */
+function renderMvDow(){
+  const names=["일","월","화","수","목","금","토"];
+  document.getElementById("mvDowRow").innerHTML=names.map((n,i)=>
+    `<div class="mv-dow ${i===0?'sun':''}${i===6?'sat':''}">${n}</div>`).join("");
+}
+function renderMonthView(){
+  document.getElementById("mvMonth").textContent=`${mvY}년 ${mvM+1}월`;
+  const first=new Date(mvY,mvM,1);
+  const startDow=first.getDay();
+  const daysInM=new Date(mvY,mvM+1,0).getDate();
+  const prevDays=new Date(mvY,mvM,0).getDate();
+  const cells=[];
+  for(let i=startDow-1;i>=0;i--)cells.push({d:prevDays-i,out:true,m:mvM-1,y:mvM===0?mvY-1:mvY,mo:mvM===0?11:mvM-1});
+  for(let d=1;d<=daysInM;d++)cells.push({d,out:false,m:mvM,y:mvY,mo:mvM});
+  while(cells.length%7!==0){const extra=cells.length-(startDow+daysInM)+1;cells.push({d:extra,out:true,m:mvM+1,y:mvM===11?mvY+1:mvY,mo:mvM===11?0:mvM+1});}
+  const tStr=todayStr();
+  const MAX_CHIPS=3;
+  let html="";
+  cells.forEach(c=>{
+    const dt=new Date(c.y,c.mo,c.d);const ds=ymd(dt);const dow=dt.getDay();
+    const hol=holidayOf(ds);
+    const hasDiary=!c.out&&state.diary[ds]&&(state.diary[ds].text||(state.diary[ds].photos&&state.diary[ds].photos.length));
+    let chipsHtml="",moreCount=0;
+    if(!c.out){
+      const tasks=tasksOn(ds);
+      const shown=tasks.slice(0,MAX_CHIPS);
+      moreCount=tasks.length-MAX_CHIPS;
+      chipsHtml=shown.map(t=>{
+        const cc=CATS[t.cat]||CATS.etc;
+        const dn=isDone(t,ds);
+        return `<div class="mv-chip${dn?' done':''}" style="background:${cc.hex}">${esc(t.title)}</div>`;
+      }).join("");
+    }
+    html+=`<div class="mv-day ${c.out?'out':''} ${ds===tStr?'today':''} ${dow===0?'sun':''}${dow===6?'sat':''} ${hol&&!c.out?'hol':''}" data-ds="${ds}" data-out="${c.out?'1':''}">
+      ${hasDiary?'<span class="mv-diary">📔</span>':''}
+      <span class="mv-dn">${c.d}</span>
+      <div class="mv-items">${chipsHtml}${moreCount>0?`<div class="mv-more">+${moreCount}</div>`:""}</div>
+    </div>`;
+  });
+  document.getElementById("mvGrid").innerHTML=html;
+  document.querySelectorAll("#mvGrid .mv-day").forEach(el=>{
+    el.onclick=()=>{
+      if(el.dataset.out==="1")return; // 이전/다음 달 날짜는 무시
+      const ds=el.dataset.ds;
+      // 기본 캘린더로 돌아가 해당 날짜 선택 (일간 뷰)
+      const d=parseYmd(ds);viewY=d.getFullYear();viewM=d.getMonth();selDate=ds;
+      toggleMonthFull(false);renderAll();
+    };
+  });
+}
+
+/* 캘린더 탭 안 기본↔월 전체 토글 (별도 탭 아님) */
+let calFullMode=false;
+function toggleMonthFull(on){
+  calFullMode=on;
+  if(on){mvY=viewY;mvM=viewM;renderMvDow();renderMonthView();}
+  document.getElementById("calView").classList.toggle("on",curTab==="cal"&&!on);
+  document.getElementById("monthView").classList.toggle("on",curTab==="cal"&&on);
+  window.scrollTo(0,0);
+}
+
 /* ---------- memo ---------- */
 function switchTab(tab){
   curTab=tab;
@@ -1838,6 +2035,10 @@ function switchTab(tab){
   const tabs={cal:"tabCal",diary:"tabDiary",ledger:"tabLedger",memo:"tabMemo"};
   Object.entries(views).forEach(([k,id])=>document.getElementById(id).classList.toggle("on",k===tab));
   Object.entries(tabs).forEach(([k,id])=>document.getElementById(id).classList.toggle("on",k===tab));
+  // 월 전체 토글 상태 반영: 캘린더 탭 + 월 전체 모드일 때만 monthView 표시
+  document.getElementById("monthView").classList.toggle("on",tab==="cal"&&calFullMode);
+  if(tab==="cal"&&calFullMode)document.getElementById("calView").classList.remove("on");
+  if(tab==="cal"&&calFullMode){renderMvDow();renderMonthView();}
   if(tab==="memo")renderMemos();
   else if(tab==="diary")renderDiaryList();
   else if(tab==="ledger")renderLedger();
@@ -2382,9 +2583,15 @@ function gInitClient(){
   });
   return true;
 }
+/* iOS 홈화면(standalone) 감지 — GIS 팝업이 "팝업 윈도우를 열려고..." 확인창을 유발하므로
+   standalone에서는 자동(비대화식) 토큰 갱신 팝업을 억제하고, 사용자가 직접 누른 경우만 띄움 */
+function isStandalonePWA(){
+  try{return window.navigator.standalone===true||(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches);}catch(e){return false;}
+}
 function gGetToken(interactive){
   return new Promise((res,rej)=>{
     if(gTokenValid()){res();return;}
+    if(!interactive&&isStandalonePWA()){rej("standalone-silent");return;} // 자동 갱신 팝업 억제(수동 ☁️ 버튼으로 갱신)
     if(!G.client&&!gInitClient()){rej("client-not-ready");return;}
     G._resolve=res;G._reject=rej;
     try{G.client.requestAccessToken({prompt:interactive?"consent":""});}catch(e){rej(e);}
@@ -2681,6 +2888,7 @@ function init(){
   document.getElementById("fTime").innerHTML=topt;
   document.getElementById("fEndTime").innerHTML=topt;
   const now=new Date();viewY=now.getFullYear();viewM=now.getMonth();selDate=todayStr();
+  mvY=now.getFullYear();mvM=now.getMonth();
   const w=["일","월","화","수","목","금","토"][now.getDay()];
   document.getElementById("todayLabel").textContent=`${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${w}) · ${lunarFull(todayStr())}`;
   renderDow();renderFilters();renderAll();
@@ -2704,6 +2912,12 @@ function init(){
   document.getElementById("tabDiary").onclick=()=>switchTab("diary");
   document.getElementById("tabLedger").onclick=()=>switchTab("ledger");
   document.getElementById("tabMemo").onclick=()=>switchTab("memo");
+  // 캘린더 안 기본↔월 전체 토글 + 월 전체 이전/다음/오늘 버튼
+  document.getElementById("calModeBtn").onclick=()=>toggleMonthFull(true);
+  document.getElementById("mvBackBtn").onclick=()=>toggleMonthFull(false);
+  document.getElementById("mvPrevM").onclick=()=>{mvM--;if(mvM<0){mvM=11;mvY--;}renderMonthView();};
+  document.getElementById("mvNextM").onclick=()=>{mvM++;if(mvM>11){mvM=0;mvY++;}renderMonthView();};
+  document.getElementById("mvTodayBtn").onclick=()=>{const n=new Date();mvY=n.getFullYear();mvM=n.getMonth();renderMonthView();};
   document.getElementById("ledParseBtn").onclick=parseAndAddSms;
   document.querySelectorAll("#ledgerView .led-sec-h").forEach(h=>h.onclick=()=>toggleLedSec(h.parentElement.dataset.sec));
   applyLedCollapse();
@@ -2716,6 +2930,10 @@ function init(){
   document.getElementById("ledSave").onclick=saveLedger;
   document.getElementById("ledDayAdd").onclick=()=>{closeOverlay("ledgerDaySheet");openLedgerAdd({date:ledDay||todayStr()});};
   document.getElementById("ledTypeSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>setLedType(b.dataset.t));
+  // 달러 통화 토글
+  document.getElementById("ledCurrSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>setLedCur(b.dataset.cur));
+  document.getElementById("ledAmt").addEventListener("input",()=>{if(_curLedCur==="USD")updateUsdPreview();});
+  document.getElementById("ledUsdRate").addEventListener("input",updateUsdPreview);
   document.getElementById("mSave").onclick=saveMemo;
   document.getElementById("monthPlanCard").onclick=()=>openPlan("month");
   document.getElementById("weekPlanCard").onclick=()=>openPlan("week");
@@ -2758,7 +2976,12 @@ function init(){
     try{await gGetToken(true);toast("백업 권한을 추가했어요");renderGoogleUI();gDriveBackup(false);}
     catch(e){G.token=old;toast("재연결이 취소됐어요");}
   };
-  document.getElementById("syncBtn").onclick=()=>{if(gIsConnected())syncNow(false);else openOverlay("menuSheet");};
+  document.getElementById("syncBtn").onclick=()=>{
+    if(!gIsConnected()){openOverlay("menuSheet");return;}
+    // standalone에서 토큰이 만료됐으면 사용자 터치 시점에 대화식으로 갱신(자동 팝업 억제의 수동 출구)
+    if(!gTokenValid()&&isStandalonePWA()){gGetToken(true).then(()=>syncNow(false)).catch(()=>toast("구글 재연결이 취소됐어요"));return;}
+    syncNow(false);
+  };
   renderGoogleUI();updateSyncUI("idle");
   window.addEventListener("online",()=>{if(gIsConnected()){syncNow(true);gAutoSync();}});
   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&gIsConnected()){syncNow(true);gAutoSync();}});
