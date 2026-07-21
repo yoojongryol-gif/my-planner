@@ -3,7 +3,7 @@
 <head>
 <!--APPVER:v2026-07-21e-->
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com https://generativelanguage.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -304,6 +304,17 @@
   .led-sec.collapsed .led-sec-arr{transform:rotate(-90deg)}
   .led-sec-b{margin-top:8px}
   .led-sec.collapsed .led-sec-b{display:none}
+  /* ===== 캡처 AI 인식 미리보기 ===== */
+  .cap-row{background:var(--surface2);border-radius:11px;padding:9px 11px;margin-bottom:7px}
+  .cap-row.off{opacity:.45}
+  .cap-r1{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .cap-r1 input[type=checkbox]{width:18px;height:18px;flex:0 0 auto}
+  .cap-r1 input[type=date]{flex:0 0 128px;padding:7px;font-size:12px}
+  .cap-r1 .cap-desc{flex:1;min-width:0;padding:7px;font-size:13px}
+  .cap-dup{font-size:10px;font-weight:700;color:var(--red);background:rgba(239,68,68,.12);padding:2px 7px;border-radius:8px;flex:0 0 auto}
+  .cap-r2{display:flex;align-items:center;gap:8px}
+  .cap-r2 input[type=number]{flex:1;min-width:0;padding:7px;font-size:13px}
+  .cap-r2 select{flex:0 0 auto;width:auto;padding:7px;font-size:12px}
   /* ===== 달러 통화 토글 ===== */
   #ledCurrSeg button.on{background:var(--accent)!important;color:#fff!important}
   #ledCurrSeg button{background:none!important;color:var(--muted)!important;border:none!important;border-radius:8px!important;padding:9px 10px!important;font-size:13px!important;font-weight:700!important;cursor:pointer!important}
@@ -428,6 +439,24 @@
       <textarea class="led-sms" id="ledSms" style="margin-top:6px" placeholder="카드 결제 문자를 그대로 붙여넣고 [인식] 버튼을 누르세요.&#10;예: [Web발신] 신한카드 승인 12,500원 일시불 06/13 14:30 스타벅스"></textarea>
       <div class="sub-add" style="margin-top:8px">
         <button type="button" id="ledParseBtn" style="flex:1">📩 문자 인식해서 추가</button>
+      </div>
+    </div>
+  </div>
+  <div class="led-sec" data-sec="capture">
+    <div class="led-sec-h"><span class="led-sec-t">📷 캡처 가져오기 <small class="led-sec-sub">· 은행앱 화면 AI 인식</small></span><span class="led-sec-arr">▾</span></div>
+    <div class="led-sec-b">
+      <small style="color:var(--muted)">은행앱 거래내역 캡처를 올리면 AI가 날짜·적요·금액을 읽어 미리보기로 보여드려요. 저장 전 수정·제외 가능.</small>
+      <div class="sub-add" style="margin-top:8px">
+        <button type="button" id="capPickBtn" style="flex:1">📷 캡처 사진 선택 (여러 장 가능)</button>
+      </div>
+      <input type="file" id="capFileInput" accept="image/*" multiple style="display:none">
+      <div id="capStatus" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+      <div id="capKeyBox" style="display:none;margin-top:8px">
+        <label class="fld" style="margin-top:0">🔑 AI 인식 키 (Gemini API) <small style="color:var(--muted);font-weight:400">— 이 기기에만 저장돼요</small></label>
+        <div class="sub-add">
+          <input id="capKeyInput" type="password" placeholder="AIza..." autocomplete="off" style="flex:1">
+          <button type="button" id="capKeySave" style="width:60px;font-size:13px">저장</button>
+        </div>
       </div>
     </div>
   </div>
@@ -726,6 +755,17 @@
   </div>
 </div>
 
+<!-- 캡처 AI 인식 미리보기 -->
+<div class="overlay" id="capSheet">
+  <div class="sheet">
+    <div class="grab"></div>
+    <h3>📷 캡처 인식 결과 <small id="capCount" style="font-size:12px;color:var(--muted);font-weight:400"></small></h3>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 10px">체크 해제 = 저장 안 함. 용도를 바꾸면 다음부터 같은 적요는 자동 분류돼요.</p>
+    <div id="capRowsBox" style="max-height:52vh;overflow-y:auto"></div>
+    <button class="save-btn" id="capSaveBtn">선택한 내역 저장</button>
+  </div>
+</div>
+
 <div class="overlay" id="ledgerDaySheet">
   <div class="sheet">
     <div class="grab"></div>
@@ -791,7 +831,55 @@ const CATS={
   birthday:{name:"생일",color:"#ec4899",hex:"#ec4899"},
   etc:{name:"기타",color:"var(--c-etc)",hex:"#06b6d4"},
 };
-/* ===== 대한민국 공휴일 (양력 고정 + 음력 계산) ===== */
+/* ===== 대한민국 공휴일 =====
+   2025~2031년: 정적 테이블(대체공휴일 규정 반영, python korean-lunar-calendar로 생성·검증).
+   그 외 연도: 음력 계산 기반 근사치(대체공휴일 미반영, fallback). */
+const KR_HOLIDAYS_STATIC={
+  "2025-01-01":"신정","2025-01-28":"설날","2025-01-29":"설날","2025-01-30":"설날",
+  "2025-03-01":"삼일절","2025-03-03":"삼일절(대체)","2025-05-05":"어린이날",
+  "2025-05-06":"어린이날·부처님오신날(대체)","2025-06-06":"현충일","2025-08-15":"광복절",
+  "2025-10-03":"개천절","2025-10-05":"추석","2025-10-06":"추석","2025-10-07":"추석",
+  "2025-10-08":"추석(대체)","2025-10-09":"한글날","2025-12-25":"크리스마스",
+  "2026-01-01":"신정","2026-02-16":"설날","2026-02-17":"설날","2026-02-18":"설날",
+  "2026-03-01":"삼일절","2026-03-02":"삼일절(대체)","2026-05-05":"어린이날",
+  "2026-05-24":"부처님오신날","2026-05-25":"부처님오신날(대체)","2026-06-06":"현충일",
+  "2026-07-17":"제헌절",
+  "2026-08-15":"광복절","2026-08-17":"광복절(대체)","2026-09-24":"추석","2026-09-25":"추석",
+  "2026-09-26":"추석","2026-10-03":"개천절","2026-10-05":"개천절(대체)","2026-10-09":"한글날",
+  "2026-12-25":"크리스마스",
+  "2027-01-01":"신정","2027-02-06":"설날","2027-02-07":"설날","2027-02-08":"설날",
+  "2027-02-09":"설날(대체)","2027-03-01":"삼일절","2027-05-05":"어린이날",
+  "2027-05-13":"부처님오신날","2027-06-06":"현충일",
+  "2027-07-17":"제헌절","2027-07-19":"제헌절(대체)","2027-08-15":"광복절",
+  "2027-08-16":"광복절(대체)","2027-09-14":"추석","2027-09-15":"추석","2027-09-16":"추석",
+  "2027-10-03":"개천절","2027-10-04":"개천절(대체)","2027-10-09":"한글날",
+  "2027-10-11":"한글날(대체)","2027-12-25":"크리스마스","2027-12-27":"크리스마스(대체)",
+  "2028-01-01":"신정","2028-01-26":"설날","2028-01-27":"설날","2028-01-28":"설날",
+  "2028-03-01":"삼일절","2028-05-02":"부처님오신날","2028-05-05":"어린이날",
+  "2028-06-06":"현충일","2028-07-17":"제헌절",
+  "2028-08-15":"광복절","2028-10-02":"추석","2028-10-03":"개천절",
+  "2028-10-04":"추석","2028-10-05":"개천절·추석(대체)","2028-10-09":"한글날",
+  "2028-12-25":"크리스마스",
+  "2029-01-01":"신정","2029-02-12":"설날","2029-02-13":"설날","2029-02-14":"설날",
+  "2029-03-01":"삼일절","2029-05-05":"어린이날","2029-05-07":"어린이날(대체)",
+  "2029-05-20":"부처님오신날","2029-05-21":"부처님오신날(대체)","2029-06-06":"현충일",
+  "2029-07-17":"제헌절",
+  "2029-08-15":"광복절","2029-09-21":"추석","2029-09-22":"추석","2029-09-23":"추석",
+  "2029-09-24":"추석(대체)","2029-10-03":"개천절","2029-10-09":"한글날",
+  "2029-12-25":"크리스마스",
+  "2030-01-01":"신정","2030-02-02":"설날","2030-02-03":"설날","2030-02-04":"설날",
+  "2030-02-05":"설날(대체)","2030-03-01":"삼일절","2030-05-05":"어린이날",
+  "2030-05-06":"어린이날(대체)","2030-05-09":"부처님오신날","2030-06-06":"현충일",
+  "2030-07-17":"제헌절",
+  "2030-08-15":"광복절","2030-09-11":"추석","2030-09-12":"추석","2030-09-13":"추석",
+  "2030-10-03":"개천절","2030-10-09":"한글날","2030-12-25":"크리스마스",
+  "2031-01-01":"신정","2031-01-22":"설날","2031-01-23":"설날","2031-01-24":"설날",
+  "2031-03-01":"삼일절","2031-03-03":"삼일절(대체)","2031-05-05":"어린이날",
+  "2031-05-28":"부처님오신날","2031-06-06":"현충일",
+  "2031-07-17":"제헌절","2031-08-15":"광복절",
+  "2031-09-30":"추석","2031-10-01":"추석","2031-10-02":"추석","2031-10-03":"개천절",
+  "2031-10-09":"한글날","2031-12-25":"크리스마스"
+};
 const FIXED_HOLIDAYS={"01-01":"신정","03-01":"삼일절","05-05":"어린이날","06-06":"현충일","08-15":"광복절","10-03":"개천절","10-09":"한글날","12-25":"크리스마스"};
 function _holidayMapForYear(y){
   const map={};
@@ -809,7 +897,9 @@ function _holidayMapForYear(y){
 }
 let _holCache={};
 function holidayOf(dateStr){
+  if(KR_HOLIDAYS_STATIC[dateStr])return KR_HOLIDAYS_STATIC[dateStr]; // 2025~2031: 대체공휴일 반영된 정적 테이블
   const y=+dateStr.slice(0,4);
+  if(y>=2025&&y<=2031)return null; // 정적 테이블 범위 내인데 없으면 공휴일 아님(근사치 fallback 사용 안 함)
   if(!_holCache[y])_holCache[y]=_holidayMapForYear(y);
   return _holCache[y][dateStr]||null;
 }
@@ -1635,6 +1725,7 @@ function ledCatOf(x){
   return x.type==="income"?"income_etc":"etc";
 }
 function renderLedger(){
+  capUpdateKeyUI(); // 가계부 탭 진입/렌더 시마다 캡처 AI 키 상태 갱신
   const now=new Date();
   const mP=ledgerMonth||`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
   document.getElementById("ledMonthLbl").textContent=mP.slice(0,4)+"년 "+(+mP.slice(5,7))+"월";
@@ -1985,6 +2076,161 @@ function parseAndAddSms(){
   else toast("인식 완료 — 확인 후 저장하세요");
   document.getElementById("ledSms").value="";
   openLedgerAdd(r);
+}
+
+/* ===== 캡처 AI 인식 (은행앱 화면 → 거래행 추출, Gemini 비전) ===== */
+const CAP_KEY_LS="ledger.aiKey";           // API 키 (이 기기 localStorage에만 — 코드/커밋 포함 금지)
+const CAP_MMAP_LS="ledMerchantMap";        // 적요→용도 학습맵
+const CAP_MODEL="gemini-3.5-flash";
+function capGetKey(){try{return (localStorage.getItem(CAP_KEY_LS)||"").trim();}catch(e){return "";}}
+function capMmapGet(){try{return JSON.parse(localStorage.getItem(CAP_MMAP_LS)||"{}");}catch(e){return {};}}
+function capMmapLearn(desc,cat){
+  const k=capNorm(desc);if(!k)return;
+  const m=capMmapGet();m[k]=cat;
+  try{localStorage.setItem(CAP_MMAP_LS,JSON.stringify(m));}catch(e){}
+}
+function capNorm(s){return String(s||"").replace(/\s+/g,"").toLowerCase().slice(0,40);}
+/* 용도 자동분류: ①학습맵 ②기존 키워드 사전(guessCat) ③기타 — 입금은 수입 카테고리로 보정 */
+function capCatFor(desc,direction){
+  const m=capMmapGet();const learned=m[capNorm(desc)];
+  let cat=learned||guessCat(desc)||"etc";
+  const isInc=direction==="in";
+  const c=LED_CATS[cat];
+  if(isInc&&(!c||!c.inc))cat=learned&&LED_CATS[learned]&&LED_CATS[learned].inc?learned:"income_etc";
+  if(!isInc&&c&&c.inc)cat="etc";
+  return cat;
+}
+/* 이미지 리사이즈(긴변 1600px, JPEG) → base64 (dataURL 헤더 제거) */
+function capResize(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>{const img=new Image();img.onload=()=>{
+      const max=1600;let{width:w,height:h}=img;
+      if(w>max||h>max){if(w>h){h=Math.round(h*max/w);w=max;}else{w=Math.round(w*max/h);h=max;}}
+      const cv=document.createElement("canvas");cv.width=w;cv.height=h;
+      cv.getContext("2d").drawImage(img,0,0,w,h);
+      res(cv.toDataURL("image/jpeg",0.85).split(",")[1]);
+    };img.onerror=()=>rej("이미지를 읽지 못했어요");img.src=e.target.result;};
+    r.onerror=()=>rej("파일을 읽지 못했어요");
+    r.readAsDataURL(file);
+  });
+}
+/* Gemini 호출 — JSON 스키마 강제 */
+async function capGemini(b64){
+  const key=capGetKey();
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/${CAP_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
+  const thisYear=new Date().getFullYear();
+  const body={
+    contents:[{parts:[
+      {text:`은행앱 거래내역 캡처 화면이야. 각 거래 행을 추출해줘.
+- date: YYYY-MM-DD (연도가 안 보이면 ${thisYear}년으로)
+- desc: 적요/거래처명 (금액·잔액·시각 제외한 상호명 위주)
+- amount: 거래금액 원화 정수 (쉼표 제거, 잔액 아님)
+- direction: 입금이면 "in", 출금/결제/이체출금이면 "out"
+잔액 표시·이월·소계·헤더 행은 제외. 거래 행이 없으면 rows를 빈 배열로.`},
+      {inline_data:{mime_type:"image/jpeg",data:b64}}
+    ]}],
+    generationConfig:{
+      response_mime_type:"application/json",
+      response_schema:{type:"OBJECT",properties:{rows:{type:"ARRAY",items:{type:"OBJECT",properties:{
+        date:{type:"STRING"},desc:{type:"STRING"},amount:{type:"INTEGER"},direction:{type:"STRING",enum:["in","out"]}
+      },required:["date","desc","amount","direction"]}}},required:["rows"]},
+      temperature:0
+    }
+  };
+  const resp=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(!resp.ok){
+    let msg="";try{msg=((await resp.json()).error||{}).message||"";}catch(e){}
+    if(resp.status===400&&/API key not valid|API_KEY_INVALID/i.test(msg))throw "AI 인식 키가 올바르지 않아요 — 키를 다시 확인해주세요";
+    if(resp.status===403)throw "AI 인식 키 권한 오류 — 키를 다시 확인해주세요";
+    if(resp.status===429)throw "AI 사용량 한도 초과 — 잠시 후 다시 시도해주세요";
+    throw `AI 인식 실패 (HTTP ${resp.status})`;
+  }
+  const d=await resp.json();
+  const txt=(((d.candidates||[])[0]||{}).content||{}).parts?.[0]?.text||"";
+  let parsed;try{parsed=JSON.parse(txt);}catch(e){throw "AI 응답을 해석하지 못했어요 — 캡처가 선명한지 확인 후 다시 시도해주세요";}
+  return Array.isArray(parsed.rows)?parsed.rows:[];
+}
+/* 중복 감지: 동일 날짜+금액+적요 기존재 */
+function capIsDup(r){
+  return activeLed().some(x=>x.date===r.date&&Math.abs(+x.amount)===Math.abs(+r.amount)&&capNorm(x.merchant)===capNorm(r.desc));
+}
+let capRows=[];
+function capUpdateKeyUI(){
+  const has=!!capGetKey();
+  document.getElementById("capKeyBox").style.display=has?"none":"";
+  if(!has)document.getElementById("capStatus").textContent="AI 인식 키가 필요해요 — 아래에 키를 저장하면 캡처 인식을 쓸 수 있어요.";
+  else document.getElementById("capStatus").textContent="";
+}
+async function capHandleFiles(files){
+  if(!capGetKey()){capUpdateKeyUI();toast("AI 인식 키를 먼저 저장해주세요");return;}
+  const st=document.getElementById("capStatus");
+  capRows=[];
+  let i=0;
+  for(const f of files){
+    i++;st.textContent=`인식 중… (${i}/${files.length})`;
+    try{
+      const b64=await capResize(f);
+      const rows=await capGemini(b64);
+      rows.forEach(r=>{
+        if(!r||!r.amount)return;
+        const date=/^\d{4}-\d{2}-\d{2}$/.test(r.date||"")?r.date:todayStr();
+        const direction=r.direction==="in"?"in":"out";
+        const desc=String(r.desc||"").trim()||"(적요 없음)";
+        const row={date,desc,amount:Math.abs(Math.round(+r.amount)),direction,cat:capCatFor(desc,direction)};
+        row.dup=capIsDup(row);row.use=!row.dup; // 중복은 기본 제외
+        capRows.push(row);
+      });
+    }catch(err){st.textContent=String(err);toast(String(err));if(!capRows.length)return;}
+  }
+  st.textContent=capRows.length?`인식 완료 — ${capRows.length}건`:"거래 행을 찾지 못했어요 — 캡처가 거래내역 화면인지 확인해주세요";
+  if(capRows.length){renderCapPreview();openOverlay("capSheet");}
+}
+function renderCapPreview(){
+  document.getElementById("capCount").textContent=`${capRows.length}건 · 중복 ${capRows.filter(r=>r.dup).length}건`;
+  const box=document.getElementById("capRowsBox");
+  box.innerHTML=capRows.map((r,i)=>{
+    const catOpts=Object.entries(LED_CATS).filter(([k,c])=>r.direction==="in"?(c.inc||k==="etc"):!c.inc)
+      .map(([k,c])=>`<option value="${k}" ${r.cat===k?'selected':''}>${c.icon} ${c.name}</option>`).join("");
+    return `<div class="cap-row ${r.use?'':'off'}" data-i="${i}">
+      <div class="cap-r1">
+        <input type="checkbox" data-f="use" ${r.use?'checked':''}>
+        <input type="date" data-f="date" value="${r.date}">
+        <input class="cap-desc" data-f="desc" value="${esc(r.desc)}" maxlength="60">
+        ${r.dup?'<span class="cap-dup">중복</span>':''}
+      </div>
+      <div class="cap-r2">
+        <input type="number" data-f="amount" value="${r.amount}" inputmode="numeric">
+        <select data-f="direction"><option value="out" ${r.direction==='out'?'selected':''}>출금</option><option value="in" ${r.direction==='in'?'selected':''}>입금</option></select>
+        <select data-f="cat">${catOpts}</select>
+      </div>
+    </div>`;
+  }).join("");
+  box.querySelectorAll(".cap-row").forEach(el=>{
+    const i=+el.dataset.i;
+    el.querySelectorAll("[data-f]").forEach(inp=>{
+      inp.onchange=()=>{
+        const f=inp.dataset.f;
+        if(f==="use"){capRows[i].use=inp.checked;el.classList.toggle("off",!inp.checked);}
+        else if(f==="amount")capRows[i].amount=Math.abs(parseInt(inp.value,10)||0);
+        else if(f==="cat"){capRows[i].cat=inp.value;capMmapLearn(capRows[i].desc,inp.value);toast("이 적요의 용도를 기억했어요");}
+        else if(f==="direction"){capRows[i].direction=inp.value;capRows[i].cat=capCatFor(capRows[i].desc,inp.value);renderCapPreview();}
+        else capRows[i][f]=inp.value;
+      };
+    });
+  });
+}
+function capSave(){
+  const sel=capRows.filter(r=>r.use&&r.amount>0);
+  if(!sel.length){toast("저장할 내역이 없어요 — 체크된 행이 없어요");return;}
+  sel.forEach(r=>{
+    state.ledger.push({id:Date.now()+""+Math.floor(Math.random()*999999),amount:r.amount,date:r.date,
+      card:"",installment:0,merchant:r.desc,memo:"",cat:r.cat,acct:"",toAcct:"",
+      type:r.direction==="in"?"income":"expense",createdAt:Date.now()});
+  });
+  save();closeOverlay("capSheet");renderLedger();
+  document.getElementById("capStatus").textContent="";
+  toast(`캡처에서 ${sel.length}건 저장 완료`);
 }
 
 /* ---------- 월 전체 보기 (일별 세로 리스트/아젠다형) ---------- */
@@ -2970,6 +3216,18 @@ function init(){
   document.getElementById("mvNextM").onclick=()=>{mvM++;if(mvM>11){mvM=0;mvY++;}renderMonthView();};
   document.getElementById("mvTodayBtn").onclick=()=>{const n=new Date();mvY=n.getFullYear();mvM=n.getMonth();renderMonthView();};
   document.getElementById("ledParseBtn").onclick=parseAndAddSms;
+  // 캡처 가져오기(은행앱 화면 AI 인식) — 사진선택/파일변경/키저장/결과저장 바인딩
+  document.getElementById("capPickBtn").onclick=()=>document.getElementById("capFileInput").click();
+  document.getElementById("capFileInput").onchange=e=>{if(e.target.files.length)capHandleFiles(e.target.files);e.target.value="";};
+  document.getElementById("capKeySave").onclick=()=>{
+    const v=document.getElementById("capKeyInput").value.trim();
+    if(!v){toast("키를 입력해주세요");return;}
+    try{localStorage.setItem(CAP_KEY_LS,v);}catch(e){}
+    document.getElementById("capKeyInput").value="";
+    capUpdateKeyUI();toast("AI 인식 키를 저장했어요");
+  };
+  document.getElementById("capSaveBtn").onclick=capSave;
+  capUpdateKeyUI();
   document.querySelectorAll("#ledgerView .led-sec-h").forEach(h=>h.onclick=()=>toggleLedSec(h.parentElement.dataset.sec));
   applyLedCollapse();
   document.getElementById("ledPrevM").onclick=()=>shiftLedMonth(-1);
