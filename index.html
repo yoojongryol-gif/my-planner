@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-07-21f-->
+<!--APPVER:v2026-07-23a-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com https://generativelanguage.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -312,9 +312,12 @@
   .cap-r1 input[type=date]{flex:0 0 128px;padding:7px;font-size:12px}
   .cap-r1 .cap-desc{flex:1;min-width:0;padding:7px;font-size:13px}
   .cap-dup{font-size:10px;font-weight:700;color:var(--red);background:rgba(239,68,68,.12);padding:2px 7px;border-radius:8px;flex:0 0 auto}
+  .cap-cardpay{font-size:10px;font-weight:700;color:#8b5cf6;background:rgba(139,92,246,.12);padding:2px 7px;border-radius:8px;flex:0 0 auto}
   .cap-r2{display:flex;align-items:center;gap:8px}
   .cap-r2 input[type=number]{flex:1;min-width:0;padding:7px;font-size:13px}
   .cap-r2 select{flex:0 0 auto;width:auto;padding:7px;font-size:12px}
+  .cap-cp{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);margin-top:6px;white-space:nowrap}
+  .cap-cp input{width:14px;height:14px}
   /* ===== 달러 통화 토글 ===== */
   #ledCurrSeg button.on{background:var(--accent)!important;color:#fff!important}
   #ledCurrSeg button{background:none!important;color:var(--muted)!important;border:none!important;border-radius:8px!important;padding:9px 10px!important;font-size:13px!important;font-weight:700!important;cursor:pointer!important}
@@ -810,7 +813,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-07-21f";
+const APP_VERSION="v2026-07-23a";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -1032,6 +1035,28 @@ async function migratePhotos(){
     }
   }
   if(changed){try{save();}catch(e){}}
+}
+
+/* 1회성 마이그레이션(2026-07-23): cardPay 기능(7/21) 도입 전 저장된 "이체(입금계좌=신용카드)" 건
+   재분류+방향 교정. 당시엔 cardPay 플래그가 없어 신용카드 계좌 balance(=사용액)에 +base가 반영돼
+   반대방향 오류(7/21 발견 구버그). 지출 집계는 원래부터 type==="transfer"라 제외돼 있었음(이중계상 아님) —
+   여기서 고치는 건 카드 사용액 방향뿐. saveLedger의 수정저장과 동일 패턴(구플래그로 되돌림→재분류→새플래그로 재반영)
+   으로 앱 자체 applyAcctEffect를 그대로 사용해 사람이 계산 실수할 여지를 없앰. state._migCardPay로 1회만 실행. */
+function migrateCardPayLegacy(){
+  if(state._migCardPay)return;
+  const accts=state.accounts||[];
+  let fixed=0;
+  (state.ledger||[]).forEach(x=>{
+    if(x.type!=="transfer"||x.cardPay)return;
+    const toA=accts.find(a=>a.id===x.toAcct);
+    if(!toA||acctKind(toA)!=="credit")return; // 신용카드로 가는 이체가 아니면 정상 이체 — 대상 아님
+    applyAcctEffect(x,-1); // 과거(방향오류) 반영분 되돌림 — 이 시점 x.cardPay는 아직 옛값(falsy)
+    x.cardPay=true;        // 재분류
+    applyAcctEffect(x,1);  // 올바른 방향(카드 사용액↓)으로 재반영
+    fixed++;
+  });
+  state._migCardPay=true;
+  if(fixed){save();console.log(`[마이그레이션] 카드대금 이체 과거건 ${fixed}건 재분류+방향교정 완료`);}
 }
 
 /* ---------- storage ---------- */
@@ -1589,7 +1614,7 @@ function renderLedCalendar(mP){
   const startDow=new Date(y,mo-1,1).getDay();
   const daysInM=new Date(y,mo,0).getDate();
   const dExp={},dInc={};
-  activeLed().forEach(x=>{if(!x.date||x.date.indexOf(mP)!==0)return;const d=+x.date.slice(8,10);if(x.type==="income")dInc[d]=(dInc[d]||0)+(+x.amount||0);else if(x.type!=="transfer")dExp[d]=(dExp[d]||0)+(+x.amount||0);});
+  activeLed().forEach(x=>{if(!x.date||x.date.indexOf(mP)!==0)return;const d=+x.date.slice(8,10);if(x.type==="income")dInc[d]=(dInc[d]||0)+(+x.amount||0);else if(x.type!=="transfer"&&!x.cardPay)dExp[d]=(dExp[d]||0)+(+x.amount||0);});
   const dows=["일","월","화","수","목","금","토"];
   let html=`<div class="led-cal">`+dows.map((n,i)=>`<div class="dow ${i===0?'sun':''}${i===6?'sat':''}">${n}</div>`).join("");
   for(let i=0;i<startDow;i++)html+=`<div class="lcday empty"></div>`;
@@ -1609,7 +1634,7 @@ function openLedgerDay(ds){
 function renderLedgerDayBody(ds){
   document.getElementById("ledDayTitle").textContent=fmtKDate(ds);
   const rows=activeLed().filter(x=>x.date===ds).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-  const exp=rows.filter(x=>x.type!=="income"&&x.type!=="transfer").reduce((s,x)=>s+(+x.amount||0),0);
+  const exp=rows.filter(x=>x.type!=="income"&&x.type!=="transfer"&&!x.cardPay).reduce((s,x)=>s+(+x.amount||0),0);
   const inc=rows.filter(x=>x.type==="income").reduce((s,x)=>s+(+x.amount||0),0);
   document.getElementById("ledDaySummary").innerHTML=
     `<div class="ldsum-item"><span>지출</span><b style="color:var(--red)">-${wonFmt(exp)}</b></div>`+
@@ -1617,11 +1642,12 @@ function renderLedgerDayBody(ds){
   const list=document.getElementById("ledDayList");
   if(!rows.length){list.innerHTML=`<div class="empty"><span class="em">💳</span>이 날 내역이 없어요.</div>`;return;}
   list.innerHTML=rows.map(x=>{
-    if(x.type==="transfer"){
+    if(x.type==="transfer"||x.cardPay){
+      const toLbl=x.toAcct?esc(acctName(x.toAcct)||"?"):esc(x.merchant||"카드사");
       return `<div class="led-row" data-id="${x.id}">
       <div class="led-bar" style="background:${x.cardPay?'#8b5cf6':'#64748b'}"></div>
       <div class="led-info">
-        <div class="led-mch">${x.cardPay?'💳':'🔄'} ${esc(acctName(x.acct)||"?")} → ${esc(acctName(x.toAcct)||"?")}</div>
+        <div class="led-mch">${x.cardPay?'💳':'🔄'} ${esc(acctName(x.acct)||"?")} → ${toLbl}</div>
         <div class="led-sub"><span style="color:var(--muted)">${x.cardPay?'카드대금 납부 · 지출 집계 제외':'계좌 이체'}</span>${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
       </div>
       <div class="led-amt" style="color:var(--muted)">${wonFmt(+x.amount||0)}</div>
@@ -1722,7 +1748,7 @@ function toggleLedSec(key){
 }
 /* 내역의 표시용 카테고리 귀속 — 무분류·낡은 카테고리는 기타(수입은 기타수입)로 (집계·필터 공통 규칙) */
 function ledCatOf(x){
-  if(x.type==="transfer")return "transfer";
+  if(x.type==="transfer"||x.cardPay)return "transfer";
   if(x.cat&&LED_CATS[x.cat])return x.cat;
   return x.type==="income"?"income_etc":"etc";
 }
@@ -1733,14 +1759,14 @@ function renderLedger(){
   document.getElementById("ledMonthLbl").textContent=mP.slice(0,4)+"년 "+(+mP.slice(5,7))+"월";
   const all=activeLed().slice().sort((a,b)=>a.date!==b.date?b.date.localeCompare(a.date):(b.createdAt||0)-(a.createdAt||0));
   const month=all.filter(x=>x.date&&x.date.indexOf(mP)===0);
-  const exp=month.filter(x=>x.type!=="income"&&x.type!=="transfer").reduce((s,x)=>s+(+x.amount||0),0);
+  const exp=month.filter(x=>x.type!=="income"&&x.type!=="transfer"&&!x.cardPay).reduce((s,x)=>s+(+x.amount||0),0);
   const inc=month.filter(x=>x.type==="income").reduce((s,x)=>s+(+x.amount||0),0);
   document.getElementById("ledSumExp").textContent=wonFmt(exp);
   document.getElementById("ledSumInc").textContent=wonFmt(inc);
   // 전월 대비 지출
   const [cy,cm]=mP.split("-").map(Number);
   const pv=new Date(cy,cm-2,1),pvP=pv.getFullYear()+"-"+pad(pv.getMonth()+1);
-  const prevExp=activeLed().filter(x=>x.type!=="income"&&x.type!=="transfer"&&x.date&&x.date.indexOf(pvP)===0).reduce((s,x)=>s+(+x.amount||0),0);
+  const prevExp=activeLed().filter(x=>x.type!=="income"&&x.type!=="transfer"&&!x.cardPay&&x.date&&x.date.indexOf(pvP)===0).reduce((s,x)=>s+(+x.amount||0),0);
   const cmpEl=document.getElementById("ledCompare");
   if(prevExp>0){
     const diff=exp-prevExp,pct=Math.round(Math.abs(diff)/prevExp*100),up=diff>0;
@@ -1748,7 +1774,7 @@ function renderLedger(){
   }else cmpEl.innerHTML="";
   // 카테고리(용도)별 지출 그래프 (선택 월, 지출만 — 수입·이체 제외, 무분류=기타 귀속)
   const expByCat={};
-  month.filter(x=>x.type!=="income"&&x.type!=="transfer").forEach(x=>{const k=ledCatOf(x);if(!expByCat[k])expByCat[k]={sum:0,cnt:0};expByCat[k].sum+=(+x.amount||0);expByCat[k].cnt++;});
+  month.filter(x=>x.type!=="income"&&x.type!=="transfer"&&!x.cardPay).forEach(x=>{const k=ledCatOf(x);if(!expByCat[k])expByCat[k]={sum:0,cnt:0};expByCat[k].sum+=(+x.amount||0);expByCat[k].cnt++;});
   const catEntries=Object.entries(expByCat).sort((a,b)=>b[1].sum-a[1].sum);
   const totExp=catEntries.reduce((s,e)=>s+e[1].sum,0);
   const chartEl=document.getElementById("ledChart");
@@ -1768,7 +1794,7 @@ function renderLedger(){
   }
   // 카드/은행별 사용 (선택 월, 지출 기준) — 일괄 확인
   const byCard={};
-  month.filter(x=>x.type!=="income"&&x.type!=="transfer").forEach(x=>{const k=x.card||"(미지정)";if(!byCard[k])byCard[k]={sum:0,cnt:0};byCard[k].sum+=(+x.amount||0);byCard[k].cnt++;});
+  month.filter(x=>x.type!=="income"&&x.type!=="transfer"&&!x.cardPay).forEach(x=>{const k=x.card||"(미지정)";if(!byCard[k])byCard[k]={sum:0,cnt:0};byCard[k].sum+=(+x.amount||0);byCard[k].cnt++;});
   const cardEntries=Object.entries(byCard).sort((a,b)=>b[1].sum-a[1].sum);
   const totCard=cardEntries.reduce((s,e)=>s+e[1].sum,0);
   const cardChartEl=document.getElementById("ledCardChart");
@@ -1809,7 +1835,7 @@ function renderLedger(){
   if(ledFilter!=="all"){
     const cf=ledFilter, byMonth={};
     activeLed().forEach(x=>{
-      if(!x.date||x.type==="income"||x.type==="transfer")return;
+      if(!x.date||x.type==="income"||x.type==="transfer"||x.cardPay)return;
       const isCard=cf==="(미지정)"?!x.card:x.card===cf;
       if(!isCard)return;
       const m=x.date.slice(0,7);
@@ -1830,11 +1856,12 @@ function renderLedger(){
   }else{
     rows.forEach(x=>{
       if(x.date!==lastDate){lastDate=x.date;html+=`<div class="led-daygrp">${fmtKDate(x.date)}</div>`;}
-      if(x.type==="transfer"){
+      if(x.type==="transfer"||x.cardPay){
+        const toLbl2=x.toAcct?esc(acctName(x.toAcct)||"?"):esc(x.merchant||"카드사");
         html+=`<div class="led-row" data-id="${x.id}">
         <div class="led-bar" style="background:${x.cardPay?'#8b5cf6':'#64748b'}"></div>
         <div class="led-info">
-          <div class="led-mch">${x.cardPay?'💳':'🔄'} ${esc(acctName(x.acct)||"?")} → ${esc(acctName(x.toAcct)||"?")}</div>
+          <div class="led-mch">${x.cardPay?'💳':'🔄'} ${esc(acctName(x.acct)||"?")} → ${toLbl2}</div>
           <div class="led-sub"><span style="color:var(--muted)">${x.cardPay?'카드대금 납부 · 지출 집계 제외':'계좌 이체'}</span>${x.memo?`<span>${esc(x.memo)}</span>`:""}</div>
         </div>
         <div class="led-amt" style="color:var(--muted)">${wonFmt(+x.amount||0)}</div>
@@ -2093,6 +2120,11 @@ function capMmapLearn(desc,cat){
   try{localStorage.setItem(CAP_MMAP_LS,JSON.stringify(m));}catch(e){}
 }
 function capNorm(s){return String(s||"").replace(/\s+/g,"").toLowerCase().slice(0,40);}
+/* 카드대금 자동감지(캡처 전용): 은행 계좌 캡처의 출금 행이 카드사 앞 자동이체(카드값 결제)면
+   이미 카드로 긁을 때 각 건이 지출로 잡혀 있으므로 여기서 또 지출 잡으면 이중계상 → cardPay 플래그.
+   적요 패턴 기반 추정이라 오탐 가능 — 미리보기에서 사장님이 체크박스로 확인/해제 가능. */
+const CARD_BILL_RE=/(비씨|BC|신한|현대|삼성|KB국민|국민|롯데|하나|우리|NH농협|농협|IBK기업|기업은행|SC제일|씨티|카카오뱅크|케이뱅크|토스뱅크|우체국)\s*카드|카드대금|카드값|카드결제대금|카드사용대금|카드자동납부|카드자동이체/;
+function capIsCardBill(desc){return CARD_BILL_RE.test(String(desc||""));}
 /* 용도 자동분류: ①학습맵 ②기존 키워드 사전(guessCat) ③기타 — 입금은 수입 카테고리로 보정 */
 function capCatFor(desc,direction){
   const m=capMmapGet();const learned=m[capNorm(desc)];
@@ -2182,7 +2214,8 @@ async function capHandleFiles(files){
         const date=/^\d{4}-\d{2}-\d{2}$/.test(r.date||"")?r.date:todayStr();
         const direction=r.direction==="in"?"in":"out";
         const desc=String(r.desc||"").trim()||"(적요 없음)";
-        const row={date,desc,amount:Math.abs(Math.round(+r.amount)),direction,cat:capCatFor(desc,direction)};
+        const cardPay=direction==="out"&&capIsCardBill(desc); // 카드대금 자동이체 추정 → 지출 집계 제외 대상
+        const row={date,desc,amount:Math.abs(Math.round(+r.amount)),direction,cat:capCatFor(desc,direction),cardPay};
         row.dup=capIsDup(row);row.use=!row.dup; // 중복은 기본 제외
         capRows.push(row);
       });
@@ -2219,12 +2252,14 @@ function renderCapPreview(){
         <input type="date" data-f="date" value="${r.date}">
         <input class="cap-desc" data-f="desc" value="${esc(r.desc)}" maxlength="60">
         ${r.dup?'<span class="cap-dup">중복</span>':''}
+        ${r.cardPay?'<span class="cap-cardpay">💳카드대금</span>':''}
       </div>
       <div class="cap-r2">
         <input type="number" data-f="amount" value="${r.amount}" inputmode="numeric">
         <select data-f="direction"><option value="out" ${r.direction==='out'?'selected':''}>출금</option><option value="in" ${r.direction==='in'?'selected':''}>입금</option></select>
-        <select data-f="cat">${catOpts}</select>
+        <select data-f="cat" ${r.cardPay?'disabled':''}>${catOpts}</select>
       </div>
+      ${r.direction==='out'?`<label class="cap-cp"><input type="checkbox" data-f="cardPay" ${r.cardPay?'checked':''}>💳 카드대금 납부로 표시 (지출 집계 제외 — 이미 카드 결제 건별로 잡혀 있을 때 체크)</label>`:''}
     </div>`;
   }).join("");
   box.querySelectorAll(".cap-row").forEach(el=>{
@@ -2235,7 +2270,8 @@ function renderCapPreview(){
         if(f==="use"){capRows[i].use=inp.checked;el.classList.toggle("off",!inp.checked);}
         else if(f==="amount")capRows[i].amount=Math.abs(parseInt(inp.value,10)||0);
         else if(f==="cat"){capRows[i].cat=inp.value;capMmapLearn(capRows[i].desc,inp.value);toast("이 적요의 용도를 기억했어요");}
-        else if(f==="direction"){capRows[i].direction=inp.value;capRows[i].cat=capCatFor(capRows[i].desc,inp.value);renderCapPreview();}
+        else if(f==="direction"){capRows[i].direction=inp.value;capRows[i].cat=capCatFor(capRows[i].desc,inp.value);if(inp.value!=="out")capRows[i].cardPay=false;renderCapPreview();}
+        else if(f==="cardPay"){capRows[i].cardPay=inp.checked;renderCapPreview();}
         else capRows[i][f]=inp.value;
       };
     });
@@ -2251,14 +2287,15 @@ function capSave(){
   sel.forEach(r=>{
     const e={id:Date.now()+""+Math.floor(Math.random()*999999),amount:r.amount,date:r.date,
       card:"",installment:0,merchant:r.desc,memo:"",cat:r.cat,acct,toAcct:"",
-      type:r.direction==="in"?"income":"expense",createdAt:Date.now()};
+      type:r.direction==="in"?"income":"expense",createdAt:Date.now(),cardPay:r.cardPay||undefined};
     state.ledger.push(e);
     applyAcctEffect(e,1); // 수동 저장(saveLedger)과 동일한 잔액 반영 경로 — 입금+/출금-, 신용카드 사용액 규칙 포함. acct 없으면 내부 no-op
   });
   if(acct)recordAssetSnapshot();
   save();closeOverlay("capSheet");renderLedger();
   document.getElementById("capStatus").textContent="";
-  toast(`캡처에서 ${sel.length}건 저장 완료`+(acct?` · ${acctName(acct)} 잔액 반영`:""));
+  const cpCnt=sel.filter(r=>r.cardPay).length;
+  toast(`캡처에서 ${sel.length}건 저장 완료`+(acct?` · ${acctName(acct)} 잔액 반영`:"")+(cpCnt?` · 카드대금 ${cpCnt}건 지출 제외`:""));
 }
 
 /* ---------- 월 전체 보기 (일별 세로 리스트/아젠다형) ---------- */
@@ -3206,6 +3243,7 @@ async function shareToMemo(){
 }
 function init(){
   load();
+  migrateCardPayLegacy();                    // 카드대금 이체 과거건 1회 재분류+방향교정 (2026-07-23)
   migratePhotos().then(()=>renderDiary());   // 기존 base64 사진을 IndexedDB로 1회 이전 후 갱신
   // populate hour dropdown (1-hour units, no minutes)
   let topt='<option value="">선택 안함</option>';
