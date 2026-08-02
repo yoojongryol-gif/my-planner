@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-07-23a-->
+<!--APPVER:v2026-08-02a-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com https://generativelanguage.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -642,6 +642,8 @@
     <div class="menu-item" id="mRestore"><span class="mi">♻️</span>구글에서 복원</div>
     <div class="menu-item" id="mExport"><span class="mi">⬇️</span>데이터 백업(파일로 내보내기)</div>
     <div class="menu-item" id="mImport"><span class="mi">⬆️</span>데이터 복원(파일 가져오기)</div>
+    <h3 style="margin-top:22px">🏋️ 운동 플랜</h3>
+    <div class="menu-item" id="mImportWorkoutAug2026"><span class="mi">🏋️</span>8월 운동 플랜 가져오기</div>
     <div class="menu-item" id="mClearDone"><span class="mi">🧹</span>완료된 할일 정리</div>
     <div class="menu-item" id="mLock"><span class="mi">🔒</span><span id="mLockLabel">앱 잠금 (암호) 설정</span></div>
     <div class="menu-item" id="mLockMode"><span class="mi">🔑</span><span id="mLockModeLabel">잠금 방식: 비밀번호</span></div>
@@ -813,7 +815,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-07-23a";
+const APP_VERSION="v2026-08-02a";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -910,7 +912,7 @@ function holidayOf(dateStr){
 }
 const KEY="myPlanner.v1";
 const APP_VER="2026.06.15-백업진단";
-let state={tasks:[],done:{},diary:{},ledger:[],accounts:[],assetHistory:[],notified:{}}; // diary: {"YYYY-MM-DD":{text,photos:[]}}; ledger:[{id,date,amount,card,merchant,memo,type,raw,createdAt}]; notified: {"taskId|date":ts}
+let state={tasks:[],done:{},diary:{},ledger:[],accounts:[],assetHistory:[],notified:{},impFlags:{}}; // diary: {"YYYY-MM-DD":{text,photos:[]}}; ledger:[{id,date,amount,card,merchant,memo,type,raw,createdAt}]; notified: {"taskId|date":ts}; impFlags: {"batchKey":true} 앱내 가져오기 중복방지 플래그
 let viewY,viewM,selDate,editId=null,curRep="none",curCat="work",filter="all";
 let mvY,mvM; // 월 전체 보기 독립 연도/월
 let curTab="cal",editMemoId=null,curMemoPhotos=[],curMemoAudio=null,mediaRec=null,recChunks=[],recStream=null;
@@ -1060,7 +1062,7 @@ function migrateCardPayLegacy(){
 }
 
 /* ---------- storage ---------- */
-function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){state=d;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.accounts=state.accounts||[];state.assetHistory=state.assetHistory||[];state.notified=state.notified||{};state.ledgerCollapse=state.ledgerCollapse||{};}}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){state=d;state.tasks=state.tasks||[];state.done=state.done||{};state.diary=state.diary||{};state.memos=state.memos||[];state.monthPlan=state.monthPlan||{};state.weekPlan=state.weekPlan||{};state.ledger=state.ledger||[];state.accounts=state.accounts||[];state.assetHistory=state.assetHistory||[];state.notified=state.notified||{};state.ledgerCollapse=state.ledgerCollapse||{};state.impFlags=state.impFlags||{};}}catch(e){}}
 function save(){state._savedAt=Date.now();localStorage.setItem(KEY,JSON.stringify(state));if(typeof scheduleBackup==="function")scheduleBackup();}
 
 /* ---------- overlay open/close + 모바일 뒤로가기 ---------- */
@@ -2909,6 +2911,67 @@ function importData(file){
   };
   r.readAsText(file);
 }
+/* ===== 8월 운동 플랜 원탭 가져오기 (2026-08, 4주 고강도 서킷) =====
+   출처: C:/Users/NHNE/Documents/운동일정_2026_08.md — d:날짜, t:제목, n:상세(주차·RPE·구성 1줄) */
+const AUG2026_WORKOUT_BATCH="aug2026workout";
+const AUG2026_WORKOUT_PLAN=[
+  {d:"2026-08-03",t:"🦵 하체+유산소 서킷 (강) 30분",n:"W1 적응 · RPE6~7 · 스쿼트3x12·런지2x12·점프스쿼트2x10·DB스티프레그2R·인터벌5R"},
+  {d:"2026-08-04",t:"💪 상체 덤벨 서킷 (중~강) 30분",n:"W1 적응 · RPE6~7 · 프레스·로우·숄더프레스·컬/킥백 각15~20회, 서킷2R(동작간20초/라운드휴식60초)"},
+  {d:"2026-08-05",t:"🔥 인터벌+코어+타바타 (강) 30분",n:"W1 적응 · RPE6~7 · 30/30 HIIT6R + 타바타1블록(20/10×8) + 플랭크3x30초"},
+  {d:"2026-08-06",t:"🏃 전신 AMRAP (중~강) 12분",n:"W1 적응 · RPE6~7 · 앱 AMRAP 고급 프리셋 시작(스쿼트10·점프스쿼트8·런지좌우10·버피5)"},
+  {d:"2026-08-07",t:"🏋️ 덤벨 메트콘 (강) 30분",n:"W1 적응 · RPE6~7 · 스러스터·DB데드리프트·런지+컬·스윙 각15~20회 서킷3R + 마무리인터벌5분"},
+  {d:"2026-08-08",t:"🚶 템포 유산소 (중~고강도) 40분",n:"W1 적응 · RPE6~7 · 빠른걷기(경사)+러닝 인터벌 혼합"},
+  {d:"2026-08-09",t:"🧘 회복 (매우 저) 20분",n:"고강도 지속의 조건 · 강도 그대로 유지 · 스트레칭10분+걷기10분"},
+  {d:"2026-08-10",t:"🦵 하체+유산소 서킷 (강) 33분",n:"W2 축적 · RPE7~8 · 스쿼트4x12·런지3x12·점프스쿼트3x10·DB스티프레그3R·인터벌6R"},
+  {d:"2026-08-11",t:"💪 상체 덤벨 서킷 (중~강) 33분",n:"W2 축적 · RPE7~8 · 서킷3R(동작간20초/라운드휴식60초)"},
+  {d:"2026-08-12",t:"🔥 인터벌+코어+타바타 (강) 33분",n:"W2 축적 · RPE7~8 · 30/30 HIIT8R + 타바타2블록 + 코어서킷2회전"},
+  {d:"2026-08-13",t:"🏃 전신 AMRAP (중~강) 15분",n:"W2 축적 · RPE7~8 · 앱 AMRAP 고급, 15분"},
+  {d:"2026-08-14",t:"🏋️ 덤벨 메트콘 (강) 33분",n:"W2 축적 · RPE7~8 · 서킷4R + 마무리인터벌6분"},
+  {d:"2026-08-15",t:"🚶 템포 유산소 (중~고강도) 40분",n:"W2 축적 · RPE7~8 · 40분(러닝 인터벌 비중↑)"},
+  {d:"2026-08-16",t:"🧘 회복 (매우 저) 20분",n:"회복 유지 · 스트레칭10분+걷기10분"},
+  {d:"2026-08-17",t:"🦵 하체+유산소 서킷 (강) 38분",n:"W3 피크 · RPE8~9 · 스쿼트4x15·런지3x15·점프스쿼트4x12·DB스티프레그4R·인터벌8R"},
+  {d:"2026-08-18",t:"💪 상체 덤벨 서킷 (중~강) 38분",n:"W3 피크 · RPE8~9 · 서킷4~5R(동작간20초/라운드휴식60초, 페이스 최대 유지)"},
+  {d:"2026-08-19",t:"🔥 인터벌+코어+타바타 (강) 38분",n:"W3 피크 · RPE8~9 · 30/30 HIIT10R + 타바타3블록 + 코어서킷3회전"},
+  {d:"2026-08-20",t:"🏃 전신 AMRAP (중~강) 18분",n:"W3 피크 · RPE8~9 · 앱 AMRAP 고급, 18분(이번 사이클 최고 강도)"},
+  {d:"2026-08-21",t:"🏋️ 덤벨 메트콘 (강) 38분",n:"W3 피크 · RPE8~9 · 서킷4~5R(이번 사이클 최대) + 마무리인터벌8분"},
+  {d:"2026-08-22",t:"🚶 템포 유산소 (중~고강도) 40분",n:"W3 피크 · RPE8~9 · 40분(최고강도, 러닝 인터벌 비중 최대)"},
+  {d:"2026-08-23",t:"🧘 회복 (매우 저) 20분",n:"회복 유지 · 스트레칭10분+걷기10분"},
+  {d:"2026-08-24",t:"🦵 하체+유산소 서킷 (강) 25분",n:"W4 디로드 · RPE6 · 스쿼트2x10·런지2x10·점프스쿼트2x8·DB스티프레그2R·인터벌4R"},
+  {d:"2026-08-25",t:"💪 상체 덤벨 서킷 (중~강) 25분",n:"W4 디로드 · RPE6 · 서킷2R(동작간30초/라운드휴식90초로 완화)"},
+  {d:"2026-08-26",t:"🔥 인터벌+코어+타바타 (강) 25분",n:"W4 디로드 · RPE6 · 30/30 HIIT4R + 타바타1블록 + 플랭크2x30초"},
+  {d:"2026-08-27",t:"🏃 전신 AMRAP (중~강) 10분",n:"W4 디로드 · RPE6 · 앱 AMRAP 고급(볼륨만 축소), 10분"},
+  {d:"2026-08-28",t:"🏋️ 덤벨 메트콘 (강) 25분",n:"W4 디로드 · RPE6 · 서킷2R + 마무리인터벌4분"},
+  {d:"2026-08-29",t:"🚶 템포 유산소 (중~고강도) 30분",n:"W4 디로드 · RPE6 · 30분(강도 낮춰 회복 위주)"},
+  {d:"2026-08-30",t:"🧘 회복 (매우 저) 20분",n:"회복은 절대 축소하지 않음(다음 사이클 준비) · 스트레칭10분+걷기10분"},
+];
+function buildAug2026WorkoutTasks(){
+  return AUG2026_WORKOUT_PLAN.map((p,i)=>({
+    id:AUG2026_WORKOUT_BATCH+"-"+String(i+1).padStart(2,"0"),
+    title:p.t,date:p.d,time:"",endTime:"",loc:"",remind:"none",prio:false,
+    cat:"health",rep:"none",
+    subs:[{id:AUG2026_WORKOUT_BATCH+"-note-"+String(i+1).padStart(2,"0"),text:p.n,done:false}],
+    gsync:"pending",lunar:false,lmonth:null,lday:null,lleap:false,
+    impBatch:AUG2026_WORKOUT_BATCH
+  }));
+}
+function importAug2026Workout(){
+  state.impFlags=state.impFlags||{};
+  const already=!!state.impFlags[AUG2026_WORKOUT_BATCH];
+  if(already){
+    if(confirm("8월 운동 플랜은 이미 추가돼 있어요.\n\n[확인] 삭제 후 다시 추가\n[취소] 그대로 두기")){
+      const removed=state.tasks.filter(t=>t.impBatch===AUG2026_WORKOUT_BATCH);
+      removed.forEach(t=>{if(t.gid){state.gdel=state.gdel||[];state.gdel.push(t.gid);}});
+      state.tasks=state.tasks.filter(t=>t.impBatch!==AUG2026_WORKOUT_BATCH);
+      state.tasks=state.tasks.concat(buildAug2026WorkoutTasks());
+      state.impFlags[AUG2026_WORKOUT_BATCH]=Date.now();
+      save();renderAll();toast("8월 운동 플랜 28일치를 다시 추가했어요");closeMenu();scheduleSync();
+    }
+    return;
+  }
+  state.tasks=state.tasks.concat(buildAug2026WorkoutTasks());
+  state.impFlags[AUG2026_WORKOUT_BATCH]=Date.now();
+  save();renderAll();toast("8월 운동 플랜 28일치를 캘린더에 추가했어요");closeMenu();scheduleSync();
+}
 function closeMenu(){closeOverlay("menuSheet");}
 
 /* ---------- toast ---------- */
@@ -3326,6 +3389,7 @@ function init(){
   document.getElementById("mExport").onclick=exportData;
   document.getElementById("mImport").onclick=()=>document.getElementById("importFile").click();
   document.getElementById("importFile").onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);};
+  document.getElementById("mImportWorkoutAug2026").onclick=importAug2026Workout;
   document.getElementById("mClearDone").onclick=()=>{
     if(confirm("완료된 (반복 아닌) 할일을 모두 삭제할까요?")){
       const remove=state.tasks.filter(t=>!(t.rep&&t.rep!=="none")&&isDone(t,t.date));
@@ -3335,7 +3399,7 @@ function init(){
   };
   document.getElementById("mReset").onclick=()=>{
     if(confirm("정말 모든 데이터를 삭제할까요? 복구할 수 없습니다."))
-      {const keepDel=state.gdel||[];state={tasks:[],done:{},diary:{},memos:[],monthPlan:{},weekPlan:{},ledger:[],accounts:[],assetHistory:[],notified:{},gdel:keepDel,gSyncToken:null,gLast:0};save();renderAll();renderMemos();toast("초기화했어요");closeMenu();}
+      {const keepDel=state.gdel||[];state={tasks:[],done:{},diary:{},memos:[],monthPlan:{},weekPlan:{},ledger:[],accounts:[],assetHistory:[],notified:{},impFlags:{},gdel:keepDel,gSyncToken:null,gLast:0};save();renderAll();renderMemos();toast("초기화했어요");closeMenu();}
   };
   // Google sync wiring
   gLoadCfg();
