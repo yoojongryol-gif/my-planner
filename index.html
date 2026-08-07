@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:v2026-08-02a-->
+<!--APPVER:v2026-08-07a-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com https://generativelanguage.googleapis.com; frame-src https://accounts.google.com; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -815,7 +815,7 @@
 
 <script>
 /* ===== 자동 업데이트 — 폰이 옛 버전 캐시를 들고 있어도 최신으로 새로고침 ===== */
-const APP_VERSION="v2026-08-02a";
+const APP_VERSION="v2026-08-07a";
 (function checkAppUpdate(){
   try{
     fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(html=>{
@@ -2997,6 +2997,8 @@ function gLoadCfg(){
 function gSaveToken(t){G.token=t;localStorage.setItem("g.token",JSON.stringify(t));}
 function gIsConnected(){return !!(G.clientId&&G.token&&G.token.access_token);}
 function gTokenValid(){return G.token&&G.token.access_token&&Date.now()<G.token.expiry-60000;}
+// 만료 5분 전(선갱신 여유) — 사용자가 직접 누른 시점에만 검사해서 미리 갱신 유도(2026-08-07 경감수리)
+function gTokenExpiringSoon(){return !G.token||!G.token.access_token||Date.now()>=(G.token.expiry-5*60000);}
 
 function gInitClient(){
   if(!window.google||!google.accounts||!google.accounts.oauth2||!G.clientId)return false;
@@ -3019,7 +3021,9 @@ function gGetToken(interactive){
     if(!interactive&&isStandalonePWA()){rej("standalone-silent");return;} // 자동 갱신 팝업 억제(수동 ☁️ 버튼으로 갱신)
     if(!G.client&&!gInitClient()){rej("client-not-ready");return;}
     G._resolve=res;G._reject=rej;
-    try{G.client.requestAccessToken({prompt:interactive?"consent":""});}catch(e){rej(e);}
+    // prompt:"consent" 강제 제거(2026-08-07) — 이미 동의한 사용자는 Google이 자동으로 가벼운 확인만 띄움,
+    // 신규 클라이언트/신규 scope일 때만 Google이 자체적으로 전체 동의화면을 보여줌(기본 빈 prompt에 위임)
+    try{G.client.requestAccessToken({prompt:""});}catch(e){rej(e);}
   });
 }
 async function gFetch(url,opts={}){
@@ -3406,7 +3410,11 @@ function init(){
   document.getElementById("mConnect").onclick=gConnect;
   document.getElementById("mDisconnect").onclick=gDisconnect;
   document.getElementById("mShowCid").onclick=()=>{const id=localStorage.getItem("g.clientId")||G.clientId||"";if(!id){toast("저장된 클라이언트 ID가 없어요");return;}try{navigator.clipboard.writeText(id);toast("클립보드에 복사됨");}catch(e){}prompt("내 구글 클라이언트 ID (길게 눌러 복사)",id);};
-  document.getElementById("mSyncNow").onclick=()=>syncNow(false);
+  document.getElementById("mSyncNow").onclick=()=>{
+    // syncBtn과 동일한 재연결 출구(사용자가 직접 누른 시점에만 대화식 갱신, 2026-08-07 UX 정돈)
+    if(gIsConnected()&&gTokenExpiringSoon()&&isStandalonePWA()){gGetToken(true).then(()=>syncNow(false)).catch(()=>toast("구글 재연결이 필요해요 — 다시 눌러주세요"));return;}
+    syncNow(false);
+  };
   document.getElementById("mBackupNow").onclick=()=>{if(!gIsConnected()){toast("먼저 구글 계정을 연결하세요");return;}gDriveBackup(false);};
   document.getElementById("mRestore").onclick=gDriveRestore;
   {const av=document.getElementById("appVer");if(av)av.textContent="버전 "+APP_VER;}
@@ -3417,8 +3425,9 @@ function init(){
   };
   document.getElementById("syncBtn").onclick=()=>{
     if(!gIsConnected()){openOverlay("menuSheet");return;}
-    // standalone에서 토큰이 만료됐으면 사용자 터치 시점에 대화식으로 갱신(자동 팝업 억제의 수동 출구)
-    if(!gTokenValid()&&isStandalonePWA()){gGetToken(true).then(()=>syncNow(false)).catch(()=>toast("구글 재연결이 취소됐어요"));return;}
+    // standalone에서 토큰이 만료(임박 포함, 5분 여유)됐으면 사용자 터치 시점에 갱신(자동 팝업 억제의 수동 출구).
+    // prompt 강제 consent 제거 후라 대부분 가벼운 확인으로 끝남(2026-08-07).
+    if(gTokenExpiringSoon()&&isStandalonePWA()){gGetToken(true).then(()=>syncNow(false)).catch(()=>toast("구글 재연결이 필요해요 — 다시 눌러주세요"));return;}
     syncNow(false);
   };
   renderGoogleUI();updateSyncUI("idle");
