@@ -1,15 +1,18 @@
 {
+  "id": "./",
   "name": "마이 플래너",
   "short_name": "플래너",
+  "description": "일정·다이어리·가계부·메모를 한 앱에서. 구글 캘린더 동기화와 드라이브 백업 지원.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f3f4f8",
+  "background_color": "#f6f4ef",
   "theme_color": "#ffffff",
   "lang": "ko",
   "icons": [
-    {"src": "apple-touch-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
-    {"src": "apple-touch-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
   ],
   "share_target": {
     "action": "./",
