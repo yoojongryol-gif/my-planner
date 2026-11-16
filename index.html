@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:2026.11.17a-->
+<!--APPVER:2026.11.17b-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com https://www.gstatic.com; style-src 'unsafe-inline'; img-src 'self' data: blob: https://www.google.com; media-src data: blob:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.gstatic.com http://127.0.0.1:9099 http://127.0.0.1:8085 https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com https://generativelanguage.googleapis.com; frame-src https://accounts.google.com; worker-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -4679,7 +4679,9 @@ function updateSyncUI(stateName){
      {k:종류, id:키, v:JSON 문자열, u:수정시각(ms), del:삭제표시, dv:기기ID}
    - 이 기기 저장(save) → 1.2초 모아서 '바뀐 항목만' 전송(항목별 해시 비교, 사라진 항목 = 삭제표시)
    - 다른 기기 변경 → onSnapshot → 수정시각(u)이 더 새 것만 반영(같은 항목은 나중에 고친 쪽이 이김)
-   - 처음 로그인: 백업 파일 자동 저장 → 기기 + 클라우드 합치기(_mergeById/_mergeByDate/_mergeDiary 재사용, 삭제표시 존중)
+   - 처음 로그인: 기기 안 사본(IndexedDB) → 기기 + 클라우드 합치기(_mergeById/_mergeByDate/_mergeDiary 재사용, 삭제표시 존중)
+     → 성공 뒤 백업 파일 1번(iOS 홈화면 앱은 자동 다운로드 생략) [2026-11-17b]
+   - 2026-11-17b: Firestore 메모리 캐시 + 죽은 인스턴스 자동 재생성 + 서버 답 대기표(meta.p) — "client has already been terminated" RCA
    - 사진·첨부파일은 이번 단계 미동기화(IndexedDB 그대로). 이 동기화가 켜지면 구글 드라이브 자동 동기화는 자동 중지,
      구글 캘린더는 '구글 캘린더에도 보내기'(기본 꺼짐)로만.
    - ?emu=1 (localhost/127.0.0.1 에서만): Firebase 에뮬레이터(auth 9099, firestore 8085) 연결 — 테스트 전용 */
@@ -4689,7 +4691,8 @@ var FB_EMU=(function(){try{return new URLSearchParams(location.search).get("emu"
 var FB_METAKEY="myPlanner.fbMeta";
 var FB_MAXV=850000; // 문서 1MB 한도 여유 — 이보다 큰 항목은 건너뛰고 화면에 알림
 var FB_KINDS=new Set(["task","todo","memo","diary","diaryW","diaryM","plan","done","ledger","account","asset","set"]);
-var FB={M:null,app:null,auth:null,db:null,user:null,unsub:null,meta:null,loading:null,diffT:null,pending:0,fromCache:true,err:null,authReady:false,authBusy:false,firstBusy:false,mode:"login",skipped:0,skipIds:new Set()};
+var FB={M:null,app:null,auth:null,db:null,user:null,unsub:null,meta:null,loading:null,diffT:null,pending:0,fromCache:true,err:null,authReady:false,authBusy:false,firstBusy:false,mode:"login",skipped:0,skipIds:new Set(),
+  gen:0,resets:0,rstAt:[],infl:new Set(),pchk:false}; // 2026-11-17b: gen=Firestore 인스턴스 세대, infl=이번 세대에서 서버 답 기다리는 항목
 function _fbLoadMeta(){try{const m=JSON.parse(localStorage.getItem(FB_METAKEY)||"null");if(m&&m.uid&&m.m)return m;}catch(e){}return null;}
 FB.meta=_fbLoadMeta();
 function _fbSaveMeta(){try{if(FB.meta)localStorage.setItem(FB_METAKEY,JSON.stringify(FB.meta));else localStorage.removeItem(FB_METAKEY);}catch(e){}}
@@ -4743,6 +4746,7 @@ function _fbErrText(e){
     "auth/operation-not-allowed":"서버에서 이메일 로그인이 아직 켜지지 않았어요(관리자 설정 필요)","auth/user-disabled":"사용이 중지된 계정이에요",
     "permission-denied":"서버가 권한 없음으로 거절했어요 (로그아웃 후 다시 로그인해 보세요)","unauthenticated":"로그인이 풀렸어요 — 다시 로그인해 주세요",
     "unavailable":"서버에 닿지 못했어요 (오프라인)","resource-exhausted":"오늘 사용량 한도를 넘었어요 — 내일 자동으로 풀려요","deadline-exceeded":"서버 응답이 너무 늦어요"};
+  if(_fbIsDead(e))return "동기화 연결이 멈췄어요(앱을 내렸다 올린 뒤 생길 수 있음) — '다시 시도'를 누르면 새로 연결해요";
   return map[c]||(typeof failReason==="function"?failReason(e):String((e&&e.message)||e));
 }
 function _fbWhen(ts){if(!ts)return "아직 없음";const d=new Date(ts),t=new Date();const hm=pad2(d.getHours())+":"+pad2(d.getMinutes());
@@ -4758,17 +4762,37 @@ function fbLoad(){
     const app=M.initializeApp(FB_CFG);
     const auth=M.initializeAuth(app,{persistence:[M.indexedDBLocalPersistence,M.browserLocalPersistence]});
     if(FB_EMU)M.connectAuthEmulator(auth,"http://127.0.0.1:9099",{disableWarnings:true});
-    let db;
-    try{db=M.initializeFirestore(app,{ignoreUndefinedProperties:true,localCache:M.persistentLocalCache({tabManager:M.persistentMultipleTabManager()})});}
-    catch(e){db=M.initializeFirestore(app,{ignoreUndefinedProperties:true,localCache:M.memoryLocalCache()});}
-    if(FB_EMU)M.connectFirestoreEmulator(db,"127.0.0.1",8085);
-    Object.assign(FB,{M,app,auth,db});
+    Object.assign(FB,{M,app,auth});
+    FB.db=_fbMakeDb();
     M.onAuthStateChanged(auth,u=>{_fbAuthChanged(u);});
     return M;
   })();
   FB.loading.catch(()=>{FB.loading=null;});
   return FB.loading;
 }
+/* Firestore 인스턴스 (2026-11-17b RCA): 영속(IndexedDB) 캐시를 쓰지 않고 메모리 캐시만 씀.
+   근거: SDK 10.12.2 의 IndexedDB 영속 계층은 Safari UA에서 pagehide 가 오면 작업 큐를 '종료 모드'로 바꾸고
+   (정규식 /(?:Version|Mobile)\/1[456]/ — iOS UA의 고정 토큰 'Mobile/15E148'에 항상 걸림), 이후 모든 호출이
+   "The client has already been terminated." 로 즉시 실패함. 기록의 원본은 어차피 이 기기(localStorage)라
+   Firestore 오프라인 캐시는 필요 없음. 서버 답 전에 앱이 닫힌 쓰기는 meta.p(대기표)로 다음 실행 때 다시 올림. */
+function _fbMakeDb(){
+  const M=FB.M,db=M.initializeFirestore(FB.app,{ignoreUndefinedProperties:true,localCache:M.memoryLocalCache()});
+  if(FB_EMU)M.connectFirestoreEmulator(db,"127.0.0.1",8085);
+  return db;
+}
+function _fbIsDead(e){return !!e&&/already been terminated/i.test(String((e&&e.message)||e));}
+/* 죽은(terminated) 인스턴스를 버리고 새로 만듦. 연결·대기 숫자 초기화 → 서버에 못 간 쓰기는 대기표(meta.p)가 다시 올림 */
+function fbResetDb(why){
+  if(!FB.M||!FB.app)return false;
+  if(FB.unsub){try{FB.unsub();}catch(e){}FB.unsub=null;}
+  const old=FB.db;FB.db=null;FB.gen++;FB.resets++;FB.pending=0;FB.infl=new Set();
+  try{if(old)FB.M.terminate(old).catch(()=>{});}catch(e){} // 옛 인스턴스 등록 해제(동기) → 같은 앱에 새로 만들 수 있음
+  FB.db=_fbMakeDb();
+  console.warn("[sync] Firestore 인스턴스를 새로 만들었어요:",why||"");
+  return true;
+}
+/* 자동 복구는 30초에 3번까지만(무한 반복 방지) — 넘으면 실패 패널로 사용자에게 알림 */
+function _fbAutoReset(why){const n=Date.now();FB.rstAt=FB.rstAt.filter(t=>n-t<30000);if(FB.rstAt.length>=3)return false;FB.rstAt.push(n);return fbResetDb(why);}
 async function _fbAuthChanged(u){
   FB.authReady=true;
   if(!u){if(FB.unsub){FB.unsub();FB.unsub=null;}FB.user=null;fbRenderIcon();fbRenderUI();return;}
@@ -4783,19 +4807,28 @@ async function _fbAuthChanged(u){
 /* ---------- 처음 로그인: 백업 → 합치기 (지우지 않음) ---------- */
 function _fbHasLocalData(){const s=state;return !!((s.tasks||[]).length||(s.todos||[]).length||(s.memos||[]).length||(s.ledger||[]).length||Object.keys(s.diary||{}).length||Object.keys(s.diaryW||{}).length||Object.keys(s.diaryM||{}).length||Object.keys(s.monthPlan||{}).length||Object.keys(s.weekPlan||{}).length);}
 async function fbPreBackup(){
-  // ① 기기 안 안전 사본(별도 IndexedDB 'myPlannerPresync') ② 백업 파일 저장/공유(기존 exportData 그대로)
+  // 합치기 '전' 안전 사본: 기기 안 별도 IndexedDB 'myPlannerPresync' (파일 다운로드는 합치기 성공 '후' — fbPostBackupFile)
   try{const snap=JSON.stringify(state);await new Promise(res=>{const r=indexedDB.open("myPlannerPresync",1);
     r.onupgradeneeded=e=>e.target.result.createObjectStore("snap");
     r.onsuccess=e=>{try{const db=e.target.result,tx=db.transaction("snap","readwrite");tx.objectStore("snap").put(snap,"presync_"+Date.now());tx.oncomplete=()=>{db.close();res();};tx.onerror=()=>{db.close();res();};}catch(x){res();}};
     r.onerror=()=>res();});}catch(e){}
-  try{await exportData();}catch(e){}
-  toast("🛟 합치기 전에 지금 기록을 백업 파일로 저장했어요");
+}
+/* iOS 홈화면 앱: <a download> 가 다운로드 시트/화면 전환을 띄워 앱이 가려짐(pagehide 유발 후보) → 자동 파일 저장은 하지 않음 */
+function _fbIosStandalone(){try{const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
+  return ios&&(navigator.standalone===true||matchMedia("(display-mode: standalone)").matches);}catch(e){return false;}}
+async function fbPostBackupFile(){ // 합치기 성공 뒤 1번 — 안내 문구를 돌려줌
+  if(_fbIosStandalone())return " · 합치기 전 기록은 기기 안에 따로 보관(파일은 메뉴 → 내보내기)";
+  try{await exportData();return " · 합치기 전 기록 백업 파일 저장";}catch(e){return "";}
 }
 async function fbFirstMerge(u){
   FB.firstBusy=true;fbSetMsg("이 기기 기록과 클라우드 기록을 합치는 중…");fbRenderIcon();
   try{
-    if(_fbHasLocalData())await fbPreBackup();
-    const M=FB.M,snap=await M.getDocsFromServer(M.collection(FB.db,"users",u.uid,"items"));
+    const hadLocal=_fbHasLocalData();
+    if(hadLocal)await fbPreBackup();
+    const M=FB.M,q=()=>M.getDocsFromServer(M.collection(FB.db,"users",u.uid,"items"));
+    let snap;
+    try{snap=await q();}
+    catch(e){if(!_fbIsDead(e))throw e;fbResetDb("first-merge");snap=await q();} // 죽은 인스턴스 → 새로 만들어 1번 더
     const R={};snap.forEach(d=>{const x=d.data();if(x&&typeof x.u==="number"&&FB_KINDS.has(_fbSplit(d.id).k))R[d.id]=x;});
     // 1) 클라우드(삭제 아님)를 상태 모양으로 → 기존 병합 도우미로 합침. 같은 시각이면 클라우드 우선, 기기 쪽이 '더 최근'일 때만 기기 우선
     const rs={tasks:[],todos:[],memos:[],ledger:[],accounts:[],assetHistory:[],diary:{},diaryW:{},diaryM:{},monthPlan:{},weekPlan:{},done:{}};
@@ -4823,7 +4856,8 @@ async function fbFirstMerge(u){
     FB.firstBusy=false;
     const up=fbDiff(),down=Object.keys(R).filter(id=>!R[id].del).length;
     _fbRerender();renderGoogleUI();
-    fbSetMsg("");toast(`☁️ 동기화 시작 — 클라우드 ${down}건 · 이 기기에서 ${up}건 올림`);
+    const bk=hadLocal?await fbPostBackupFile():"";
+    fbSetMsg("");toast(`☁️ 동기화 시작 — 클라우드 ${down}건 · 이 기기에서 ${up}건 올림${bk}`);
   }catch(e){
     FB.firstBusy=false;fbSetMsg("");FB.err={src:"first",e};
     if(!(e&&e.isSaveErr))showFail({what:"처음 동기화를 시작하지 못했어요",why:_fbErrText(e),hint:"처음 연결할 때는 인터넷이 필요해요. 이 기기의 기록은 그대로예요. 연결된 뒤 '다시 시도'를 눌러 주세요.",retry:()=>{FB.err=null;if(FB.auth&&FB.auth.currentUser){FB.user=null;_fbAuthChanged(FB.auth.currentUser);}}});
@@ -4841,22 +4875,30 @@ function fbDiff(){
   for(const id in m){if(m[id][0]===0||E[id]||FB.skipIds.has(id))continue;const s=_fbSplit(id);if(!FB_KINDS.has(s.k))continue;
     ops.push({id,k:s.k,key:s.key,v:null,del:true,h:0,prev:m[id],u:Math.max(now,m[id][1]+1)});}
   if(!ops.length)return 0;
-  ops.forEach(o=>{m[o.id]=[o.h,o.u];});_fbSaveMeta();
+  const P=FB.meta.p||(FB.meta.p={}); // 대기표: 서버 답(ack) 전인 쓰기 {문서ID:u} — 답 오면 지움, 앱이 먼저 닫히면 다음 실행 때 다시 올림
+  ops.forEach(o=>{m[o.id]=[o.h,o.u];P[o.id]=o.u;});_fbSaveMeta();
   fbPush(ops);
   return ops.length;
 }
 function fbPush(ops){
-  const M=FB.M,uid=FB.user.uid,dv=_fbDev();
+  const M=FB.M,uid=FB.user.uid,dv=_fbDev(),g=FB.gen;
   for(let i=0;i<ops.length;i+=400){
-    const part=ops.slice(i,i+400),b=M.writeBatch(FB.db);
-    part.forEach(o=>b.set(M.doc(FB.db,"users",uid,"items",o.id),{k:o.k,id:o.key,v:o.v,u:o.u,del:o.del,dv}));
-    FB.pending++;fbRenderIcon();
-    b.commit().then(()=>{FB.pending--;_fbMarkLast();if(FB.err&&FB.err.src==="push")FB.err=null;fbRenderIcon();fbRenderUI();})
+    const part=ops.slice(i,i+400);
+    let pr;
+    try{const b=M.writeBatch(FB.db);part.forEach(o=>b.set(M.doc(FB.db,"users",uid,"items",o.id),{k:o.k,id:o.key,v:o.v,u:o.u,del:o.del,dv}));pr=b.commit();}
+    catch(e){pr=Promise.reject(e);} // 죽은 인스턴스는 동기 예외 → 아래 되돌리기 경로로 (예전엔 meta만 '동기화됨'으로 남았음)
+    FB.pending++;part.forEach(o=>FB.infl.add(o.id));fbRenderIcon();
+    const settle=()=>{if(g===FB.gen){FB.pending=Math.max(0,FB.pending-1);part.forEach(o=>FB.infl.delete(o.id));}};
+    pr.then(()=>{settle();const P=FB.meta&&FB.meta.p;if(P){part.forEach(o=>{if(P[o.id]===o.u)delete P[o.id];});}
+      _fbMarkLast();if(FB.err&&FB.err.src==="push")FB.err=null;fbRenderIcon();fbRenderUI();})
     .catch(e=>{
-      FB.pending--;
-      const m=FB.meta&&FB.meta.m;if(m){part.forEach(o=>{const c=m[o.id];if(c&&c[1]===o.u){if(o.prev)m[o.id]=o.prev;else delete m[o.id];}});_fbSaveMeta();}
+      settle();
+      const m=FB.meta&&FB.meta.m,P=FB.meta&&FB.meta.p;
+      if(m){part.forEach(o=>{const c=m[o.id];if(c&&c[1]===o.u){if(o.prev)m[o.id]=o.prev;else delete m[o.id];if(P&&P[o.id]===o.u)delete P[o.id];}});_fbSaveMeta();}
+      if(g!==FB.gen)return; // 이미 새 인스턴스로 바뀜 → 그쪽 fbListen/fbDiff가 다시 올림
+      if(_fbIsDead(e)&&_fbAutoReset("push")){fbListen();fbRenderIcon();fbRenderUI();return;} // 자동 복구 후 다시 올림
       FB.err={src:"push",e};fbRenderIcon();fbRenderUI();
-      showFail({what:"동기화 서버에 "+part.length+"건을 올리지 못했어요",why:_fbErrText(e),hint:"기기에 저장된 기록은 안전해요. '다시 시도'를 누르면 다시 올려요.",retry:()=>{FB.err=null;fbDiff();fbRenderIcon();}});
+      showFail({what:"동기화 서버에 "+part.length+"건을 올리지 못했어요",why:_fbErrText(e),hint:"기기에 저장된 기록은 안전해요. '다시 시도'를 누르면 다시 올려요.",retry:()=>{FB.err=null;if(_fbIsDead(e))fbResetDb("retry-push");if(!FB.unsub)fbListen();else fbDiff();fbRenderIcon();}});
     });
   }
 }
@@ -4865,12 +4907,30 @@ function fbPush(ops){
 function fbListen(){
   if(!FB.user||!FB.db)return;
   if(FB.unsub){FB.unsub();FB.unsub=null;}
-  const M=FB.M;
-  FB.unsub=M.onSnapshot(M.collection(FB.db,"users",FB.user.uid,"items"),{includeMetadataChanges:true},_fbOnSnap,e=>{
-    FB.unsub=null;FB.err={src:"listen",e};fbRenderIcon();fbRenderUI();
-    showFail({what:"동기화 연결이 끊겼어요",why:_fbErrText(e),hint:"기기에 저장된 기록은 안전해요. '다시 시도'를 누르면 다시 연결해요.",retry:()=>{FB.err=null;fbListen();fbRenderIcon();}});
-  });
+  const M=FB.M,g=FB.gen;FB.pchk=false;
+  const onErr=e=>{
+    if(g!==FB.gen)return; // 옛 인스턴스의 오류 — 무시
+    FB.unsub=null;
+    if(_fbIsDead(e)&&_fbAutoReset("listen")){fbListen();fbRenderIcon();fbRenderUI();return;}
+    FB.err={src:"listen",e};fbRenderIcon();fbRenderUI();
+    showFail({what:"동기화 연결이 끊겼어요",why:_fbErrText(e),hint:"기기에 저장된 기록은 안전해요. '다시 시도'를 누르면 다시 연결해요.",retry:()=>{FB.err=null;if(_fbIsDead(e))fbResetDb("retry-listen");fbListen();fbRenderIcon();}});
+  };
+  try{FB.unsub=M.onSnapshot(M.collection(FB.db,"users",FB.user.uid,"items"),{includeMetadataChanges:true},_fbOnSnap,onErr);}
+  catch(e){onErr(e);return;} // 죽은 인스턴스면 여기서 동기 예외
   fbDiff(); // 앱이 꺼져 있던 동안 바뀐 것 올리기
+}
+/* 대기표 점검(연결 후 첫 서버 스냅샷 1회): 지난번에 서버 답 없이 끝난 쓰기 중 서버에 없는 것은 다시 올림.
+   서버에 있고 u가 같거나 더 새것이면 받은 것으로 보고 지움. 서버 쪽이 더 옛날이면 아래 기존 규칙(cur[1]>d.u)이 다시 올림 */
+function _fbCheckPending(snap,m){
+  const P=FB.meta.p;if(!P)return 0;let resend=0;const D={};snap.docs.forEach(d=>{D[d.id]=d;});
+  for(const id in P){
+    if(FB.infl.has(id))continue;                       // 지금 이 인스턴스가 보내는 중
+    const d=D[id];if(d&&d.metadata.hasPendingWrites)continue;
+    const x=d&&d.data(),du=x&&typeof x.u==="number"?x.u:null;
+    if(du!==null&&du>=P[id]){delete P[id];continue;}  // 서버가 받음(또는 다른 기기의 더 새 내용)
+    if(!d){const c=m[id];if(c&&c[0]!==0&&c[1]===P[id]){m[id]=[-1,c[1]];resend++;}else delete P[id];}
+  }
+  return resend;
 }
 function _fbOnSnap(snap){
   if(!FB.meta||!FB.user||FB.meta.uid!==FB.user.uid)return;
@@ -4890,6 +4950,7 @@ function _fbOnSnap(snap){
     m[id]=[h,d.u];
   });
   FB.fromCache=snap.metadata.fromCache;
+  if(!snap.metadata.fromCache&&!FB.pchk){FB.pchk=true;resend+=_fbCheckPending(snap,m);}
   if(!snap.metadata.fromCache){FB.meta.lastAt=Date.now();if(FB.err&&FB.err.src==="listen")FB.err=null;}
   _fbSaveMeta();
   if(changed){normalizeState();try{_writeState();}catch(e){_saveFailPanel(e);}_fbRerender();}
@@ -4933,7 +4994,9 @@ async function fbSyncNow(){
   if(!navigator.onLine){toast("오프라인이에요 — 연결되면 자동으로 맞춰요");return;}
   FB.err=null;if(!FB.unsub)fbListen();else fbDiff();fbRenderIcon();fbRenderUI();
   try{
-    await Promise.race([FB.M.waitForPendingWrites(FB.db),new Promise((_,rj)=>setTimeout(()=>rj(new Error("서버 응답이 15초 넘게 없어요")),15000))]);
+    const wp=()=>FB.M.waitForPendingWrites(FB.db);
+    let w;try{w=wp();}catch(e){if(!_fbIsDead(e))throw e;fbResetDb("syncnow");fbListen();w=wp();} // 죽은 인스턴스면 새로 만들고 다시
+    await Promise.race([w,new Promise((_,rj)=>setTimeout(()=>rj(new Error("서버 응답이 15초 넘게 없어요")),15000))]);
     _fbMarkLast();toast("☁️ 동기화 완료");
   }catch(e){showFail({what:"동기화를 마치지 못했어요",why:_fbErrText(e),hint:"기기에 저장된 기록은 안전해요. 연결되면 자동으로 이어서 올려요.",retry:fbSyncNow});}
   if(gcalOn()&&gIsConnected())syncNow(false);
