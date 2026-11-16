@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:2026.11.16e-->
+<!--APPVER:2026.11.17a-->
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com https://generativelanguage.googleapis.com; frame-src https://accounts.google.com; worker-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com https://www.gstatic.com; style-src 'unsafe-inline'; img-src 'self' data: blob: https://www.google.com; media-src data: blob:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.gstatic.com http://127.0.0.1:9099 http://127.0.0.1:8085 https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com https://generativelanguage.googleapis.com; frame-src https://accounts.google.com; worker-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -488,6 +488,25 @@
   .acct-row b{font-weight:800}
   .acct-empty{font-size:12px;color:var(--muted);padding:4px 2px 8px}
   .acct-add{width:100%;background:var(--surface2);border:1px dashed var(--line);color:var(--accent2);border-radius:10px;padding:9px;font-size:13px;font-weight:600;cursor:pointer}
+  /* ☁️ 동기화 (2026-11-17a) */
+  #syncBtn{position:relative}
+  #syncBtn[data-st]::after{content:"";position:absolute;right:3px;bottom:3px;width:10px;height:10px;border-radius:50%;border:2px solid var(--surface2);display:none}
+  #syncBtn[data-st=ok]::after{display:block;background:#22c55e}
+  #syncBtn[data-st=syncing]::after{display:block;background:#f59e0b;animation:fbPulse .9s infinite alternate}
+  #syncBtn[data-st=offline]::after{display:block;background:#9ca3af}
+  #syncBtn[data-st=err]::after,#syncBtn[data-st=login]::after{display:block;background:#ef4444}
+  @keyframes fbPulse{from{opacity:.3}to{opacity:1}}
+  .fb-card{font-size:14px;background:var(--surface2);border-radius:12px;padding:13px 14px;line-height:1.65;margin-bottom:10px}
+  .fb-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:0}
+  .fb-note{font-size:13px;color:var(--muted);line-height:1.6;background:var(--surface2);border-radius:11px;padding:11px 13px;margin:12px 0 0}
+  .fb-msg{min-height:22px;font-size:14px;margin-top:12px;line-height:1.5;color:var(--muted)}
+  .fb-msg.err{color:var(--red);font-weight:600}
+  .fb-in{font-size:16px!important;min-height:50px}
+  .fb-sec-btn{width:100%;background:var(--surface2);color:var(--text);border:1px solid var(--line);border-radius:13px;padding:15px;font-size:16px;font-weight:700;margin-top:10px;cursor:pointer;min-height:52px}
+  .fb-sec-btn:active{transform:scale(.98)}
+  .fb-sw{display:flex;align-items:center;gap:12px;padding:14px;border-radius:12px;background:var(--surface2);margin-top:12px;font-size:15px;cursor:pointer;line-height:1.45}
+  .fb-sw input{width:26px;height:26px;flex:0 0 auto;margin:0}
+  #fbSubmit:disabled{opacity:.6}
 </style>
 </head>
 <body>
@@ -498,7 +517,7 @@
       <div class="h-date" id="todayLabel"></div>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="icon-btn" id="syncBtn" title="구글 동기화">☁️</button>
+      <button class="icon-btn" id="syncBtn" title="동기화" aria-label="동기화">☁️</button>
       <button class="icon-btn" id="menuBtn">⚙️</button>
     </div>
   </div>
@@ -891,8 +910,12 @@
     <div id="notifStatus" style="font-size:13px;color:var(--muted);background:var(--surface2);border-radius:11px;padding:11px;margin-bottom:10px"></div>
     <div class="menu-item" id="mNotify"><span class="mi">🔔</span>일정 알림 켜기</div>
     <p style="color:var(--muted);font-size:12px;margin:6px 2px 0;line-height:1.6">일정마다 알림 시점을 정할 수 있어요. <b>앱이 열려 있을 때</b> 알림이 와요. 아이폰은 <b>홈 화면에 추가</b>(공유→홈 화면에 추가) 후 그 앱에서 열어야 알림이 작동해요.</p>
-    <h3 class="menu-h">☁️ 백업·저장공간</h3>
-    <div style="font-size:13px;font-weight:700;margin:4px 0 8px">구글 연결 · 동기화</div>
+    <h3 class="menu-h">☁️ 동기화 (폰·PC 같이 쓰기)</h3>
+    <div class="fb-card" id="fbMenuStatus">상태 확인 중…</div>
+    <button class="save-btn" id="mFbOpen" style="margin-top:0">☁️ 동기화 열기 (로그인·상태)</button>
+    <h3 class="menu-h">💾 백업·저장공간</h3>
+    <div style="font-size:13px;font-weight:700;margin:4px 0 8px">구글 연결 (캘린더·드라이브 백업)</div>
+    <div class="fb-note" id="gFbNote" hidden style="margin:0 0 10px">☁️ 동기화를 쓰는 중이라 <b>구글 드라이브 자동 동기화는 꺼져 있어요</b>(두 길이 겹치지 않게). 아래 '지금 구글에 백업'은 직접 누를 때만 동작해요. 구글 캘린더는 ☁️ 동기화 화면의 '구글 캘린더에도 보내기'로 켜요.</div>
     <div id="gStatus" style="font-size:13px;color:var(--muted);background:var(--surface2);border-radius:11px;padding:11px;margin-bottom:10px">상태 확인 중…</div>
     <div id="gConnected" style="display:none">
       <div class="menu-item" id="mSyncNow"><span class="mi">🔄</span>지금 동기화</div>
@@ -919,10 +942,37 @@
     <div class="menu-item" style="display:none" id="mImportWorkoutAug2026"><span class="mi">🏋️</span>8월 운동 플랜 가져오기</div>
     <input type="file" id="importFile" accept="application/json" style="display:none">
     <p style="color:var(--muted);font-size:12px;margin-top:18px;line-height:1.6">
-      💡 데이터는 이 기기 + 구글 드라이브에 백업됩니다.<br>
+      💡 기록은 이 기기에 저장되고, ☁️ 동기화에 로그인하면 폰·PC가 자동으로 맞춰져요.<br>
       📱 모바일에서 <b>홈 화면에 추가</b>하면 앱처럼 쓸 수 있어요.
     </p>
     <p style="color:var(--muted);font-size:11px;margin-top:8px;text-align:center" id="appVer"></p>
+  </div>
+</div>
+
+<!-- ☁️ 동기화 (Firebase 이메일 로그인, 2026-11-17a) — 팝업·리다이렉트 없음(iOS 홈화면 앱 안전) -->
+<div class="overlay" id="syncSheet">
+  <div class="sheet">
+    <div class="grab"></div>
+    <h3>☁️ 동기화</h3>
+    <div class="fb-card" id="fbStatusCard">상태 확인 중…</div>
+    <div id="fbOut">
+      <p style="font-size:14px;line-height:1.65;margin:2px 2px 4px">아이폰과 노트북에서 <b>같은 이메일로 로그인</b>하면 일정·할일·메모·다이어리가 자동으로 맞춰져요. 한 번 로그인하면 계속 유지돼요.</p>
+      <label class="fld" for="fbEmail">이메일</label>
+      <input class="fb-in" id="fbEmail" type="email" inputmode="email" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="example@gmail.com">
+      <label class="fld" for="fbPw">비밀번호 (6자 이상)</label>
+      <input class="fb-in" id="fbPw" type="password" autocomplete="current-password" placeholder="비밀번호">
+      <div id="fbPw2Wrap" hidden><label class="fld" for="fbPw2">비밀번호 확인</label><input class="fb-in" id="fbPw2" type="password" autocomplete="new-password" placeholder="한 번 더 입력"></div>
+      <div class="fb-msg" id="fbMsg" role="status" aria-live="polite"></div>
+      <button class="save-btn" id="fbSubmit" style="margin-top:8px">로그인</button>
+      <button class="fb-sec-btn" id="fbMode" type="button">처음이면 계정 만들기</button>
+      <p style="font-size:12.5px;color:var(--muted);line-height:1.65;margin:12px 2px 0">이 앱 전용 계정이에요(구글 비밀번호와 별개). 두 번째 기기에서는 같은 이메일·비밀번호로 <b>로그인</b>만 하면 돼요 — 기기 기록과 클라우드 기록을 <b>합쳐요</b>(지우지 않아요). 합치기 전에 백업 파일도 자동으로 저장해요.</p>
+    </div>
+    <div id="fbIn" hidden>
+      <button class="save-btn" id="fbSyncNow" style="margin-top:4px">🔄 지금 동기화</button>
+      <label class="fb-sw"><input type="checkbox" id="fbGcal"><span>구글 캘린더에도 보내기<br><span style="font-size:12.5px;color:var(--muted)">켜면 이 기기에서 구글 캘린더로도 일정을 보내고 받아요(설정의 구글 연결 필요). 한 기기에서만 켜는 걸 권해요.</span></span></label>
+      <div class="fb-note">📷 사진·첨부파일은 이 기기에만 있어요 (다음 단계에서 연동)</div>
+      <button class="fb-sec-btn" id="fbLogout" type="button" style="color:var(--amber)">로그아웃</button>
+    </div>
   </div>
 </div>
 
@@ -4428,6 +4478,7 @@ async function pullChanges(){
   }while(pageToken);
 }
 async function syncNow(silent){
+  if(fbActive()&&!gcalOn()){if(!silent)toast("'구글 캘린더에도 보내기'가 꺼져 있어요 — ☁️ 동기화 화면에서 켤 수 있어요");return;}
   if(!gIsConnected()){if(!silent)toast("먼저 구글 계정을 연결하세요");return;}
   if(G.syncing)return;
   if(!navigator.onLine){updateSyncUI("offline");if(!silent)toast("오프라인 — 연결되면 자동 동기화돼요");return;}
@@ -4455,14 +4506,14 @@ async function syncNow(silent){
   }catch(e){updateSyncUI("err");if(!silent&&!(e&&e.isSaveErr))showFail({what:"구글 캘린더 동기화에 실패했어요",why:failReason(e),hint:"기기에 저장된 일정은 안전해요.",retry:()=>syncNow(false)});}
   G.syncing=false;
 }
-function scheduleSync(){if(!gIsConnected())return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow(true),1500);}
+function scheduleSync(){if(!gIsConnected()||(fbActive()&&!gcalOn()))return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow(true),1500);}
 
 /* ===== 구글 드라이브 자동 백업 (앱 전용 폴더 appDataFolder) =====
    다이어리·메모·가계부·일정·계획 전부 + 사진까지 클라우드 백업.
    기기 데이터가 비워져도 '구글에서 복원'으로 되살릴 수 있음. */
 const BACKUP_NAME="planner-backup.json";
 let backupTimer=null,gBackingUp=false;
-function scheduleBackup(){if(!gIsConnected())return;clearTimeout(backupTimer);backupTimer=setTimeout(()=>gDriveBackup(true),8000);}
+function scheduleBackup(){if(typeof fbScheduleDiff==="function")fbScheduleDiff();if(fbActive()||!gIsConnected())return;clearTimeout(backupTimer);backupTimer=setTimeout(()=>gDriveBackup(true),8000);}
 async function gDriveFindBackup(){
   const q=encodeURIComponent("name='"+BACKUP_NAME+"'");
   const r=await gFetch("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q="+q+"&fields=files(id,modifiedTime)");
@@ -4472,6 +4523,7 @@ async function gDriveFindBackup(){
 }
 async function gDriveBackup(silent){
   if(!gIsConnected()||gBackingUp)return false;
+  if(silent&&fbActive())return false; // ☁️ 동기화 사용 중 → 드라이브 자동 백업 중지(수동은 허용)
   if(!navigator.onLine)return false;
   gBackingUp=true;
   try{
@@ -4554,7 +4606,7 @@ function mergeRemote(remote){
   state.notified=Object.assign({},r.notified||{},state.notified||{});
 }
 async function gAutoSync(){
-  if(!gIsConnected()||gSyncing||!navigator.onLine)return;
+  if(fbActive()||!gIsConnected()||gSyncing||!navigator.onLine)return; // ☁️ 동기화 사용 중 → 드라이브 동기화 중지
   gSyncing=true;
   try{
     const found=await gDriveFindBackup();
@@ -4612,10 +4664,345 @@ function renderGoogleUI(){
 }
 function updateSyncUI(stateName){
   const b=document.getElementById("syncBtn");if(!b)return;
+  if(fbActive()){fbRenderIcon();return;} // ☁️ 버튼은 Firebase 동기화 상태를 보여줌
   if(!gIsConnected()){b.textContent="☁️";b.style.opacity=".5";return;}
   b.style.opacity="1";
   b.textContent={syncing:"⏳",ok:"✅",err:"⚠️",offline:"📡",idle:"☁️"}[stateName]||"☁️";
   if(stateName==="ok")setTimeout(()=>{if(!G.syncing)b.textContent="☁️";},1500);
+}
+
+/* ===================== ☁️ 기기 간 동기화 — Firebase (2026-11-17a) =====================
+   원인(2026-11-16 실측): 구글 토큰 1시간 무신호 만료 + iOS 홈화면 앱의 팝업 차단 + 계정 선택 없음
+   → 기기마다 다른/만료된 구글 계정에 붙어 서로 안 맞음.
+   해결: 이메일+비밀번호 로그인(팝업·리다이렉트 없음, 로그인 유지) + Firestore 실시간 동기화.
+   저장 구조: users/{uid}/items/{종류}__{키} — 항목 1개 = 문서 1개
+     {k:종류, id:키, v:JSON 문자열, u:수정시각(ms), del:삭제표시, dv:기기ID}
+   - 이 기기 저장(save) → 1.2초 모아서 '바뀐 항목만' 전송(항목별 해시 비교, 사라진 항목 = 삭제표시)
+   - 다른 기기 변경 → onSnapshot → 수정시각(u)이 더 새 것만 반영(같은 항목은 나중에 고친 쪽이 이김)
+   - 처음 로그인: 백업 파일 자동 저장 → 기기 + 클라우드 합치기(_mergeById/_mergeByDate/_mergeDiary 재사용, 삭제표시 존중)
+   - 사진·첨부파일은 이번 단계 미동기화(IndexedDB 그대로). 이 동기화가 켜지면 구글 드라이브 자동 동기화는 자동 중지,
+     구글 캘린더는 '구글 캘린더에도 보내기'(기본 꺼짐)로만.
+   - ?emu=1 (localhost/127.0.0.1 에서만): Firebase 에뮬레이터(auth 9099, firestore 8085) 연결 — 테스트 전용 */
+var FB_CFG={"apiKey":"AIzaSyA0SBhPmEha0SV5RqR-73HoGLXJgkt-QN4","authDomain":"my-planner-tongshin2.firebaseapp.com","projectId":"my-planner-tongshin2","storageBucket":"my-planner-tongshin2.firebasestorage.app","messagingSenderId":"1094106178290","appId":"1:1094106178290:web:368afab633e695dc86a66b"}; // 웹 설정값은 공개용(비밀 아님) — 보안은 firestore.rules(본인 uid만)로 처리
+var FB_SDK="https://www.gstatic.com/firebasejs/10.12.2/";
+var FB_EMU=(function(){try{return new URLSearchParams(location.search).get("emu")==="1"&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname);}catch(e){return false;}})();
+var FB_METAKEY="myPlanner.fbMeta";
+var FB_MAXV=850000; // 문서 1MB 한도 여유 — 이보다 큰 항목은 건너뛰고 화면에 알림
+var FB_KINDS=new Set(["task","todo","memo","diary","diaryW","diaryM","plan","done","ledger","account","asset","set"]);
+var FB={M:null,app:null,auth:null,db:null,user:null,unsub:null,meta:null,loading:null,diffT:null,pending:0,fromCache:true,err:null,authReady:false,authBusy:false,firstBusy:false,mode:"login",skipped:0,skipIds:new Set()};
+function _fbLoadMeta(){try{const m=JSON.parse(localStorage.getItem(FB_METAKEY)||"null");if(m&&m.uid&&m.m)return m;}catch(e){}return null;}
+FB.meta=_fbLoadMeta();
+function _fbSaveMeta(){try{if(FB.meta)localStorage.setItem(FB_METAKEY,JSON.stringify(FB.meta));else localStorage.removeItem(FB_METAKEY);}catch(e){}}
+function fbActive(){return !!(typeof FB!=="undefined"&&FB&&FB.meta&&FB.meta.uid);}
+function gcalOn(){try{return localStorage.getItem("mp.gcalOn")==="1";}catch(e){return false;}}
+function _fbDev(){try{let d=localStorage.getItem("myPlanner.devId");if(!d){d="d"+Date.now().toString(36)+Math.random().toString(36).slice(2,8);localStorage.setItem("myPlanner.devId",d);}return d;}catch(e){return "d0";}}
+function _fbHash(s){let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677);}
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+  return (4294967296*(2097151&h2)+(h1>>>0))||1;} // 0은 '삭제됨' 표시용이라 피함
+function _fbDocId(k,key){return k+"__"+encodeURIComponent(String(key));}
+function _fbSplit(id){const i=id.indexOf("__");if(i<0)return {k:"",key:""};let key="";try{key=decodeURIComponent(id.slice(i+2));}catch(e){}return {k:id.slice(0,i),key};}
+function _fbTs(v){return (v&&typeof v==="object")?(v.updatedAt||v.mtime||v.createdAt||0):0;}
+/* 지금 상태 → {문서ID:{k,key,j}} (동기화 대상 전부). notified·impFlags·구글 토큰 등 기기 전용 값은 제외 */
+function fbEntities(st){
+  st=st||state;const E={};let skipped=0;FB.skipIds=new Set();
+  const add=(k,key,v)=>{if(key==null||key===""||v===undefined)return;const j=JSON.stringify(v);if(j===undefined)return;
+    const id=_fbDocId(k,key);if(j.length>FB_MAXV){skipped++;FB.skipIds.add(id);return;}E[id]={k,key:String(key),j};};
+  (st.tasks||[]).forEach(t=>{if(t&&t.id!=null)add("task",t.id,t);});
+  (st.todos||[]).forEach(x=>{if(x&&x.id!=null)add("todo",x.id,x);});
+  (st.memos||[]).forEach(x=>{if(x&&x.id!=null)add("memo",x.id,x);});
+  for(const d in (st.diary||{}))add("diary",d,st.diary[d]);
+  for(const d in (st.diaryW||{}))add("diaryW",d,st.diaryW[d]);
+  for(const d in (st.diaryM||{}))add("diaryM",d,st.diaryM[d]);
+  for(const k in (st.monthPlan||{}))add("plan","M:"+k,st.monthPlan[k]);
+  for(const k in (st.weekPlan||{}))add("plan","W:"+k,st.weekPlan[k]);
+  for(const k in (st.done||{}))if(st.done[k])add("done",k,st.done[k]);
+  (st.ledger||[]).forEach(x=>{if(x&&x.id!=null)add("ledger",x.id,x);});   // 가계부(화면 숨김)도 데이터는 보존·동기화
+  (st.accounts||[]).forEach(x=>{if(x&&x.id!=null)add("account",x.id,x);});
+  (st.assetHistory||[]).forEach(x=>{if(x&&x.date)add("asset",x.date,x);});
+  if(Array.isArray(st.scopeKw))add("set","scopeKw",st.scopeKw);
+  FB.skipped=skipped;return E;
+}
+/* 항목 1개를 상태에 반영(del=true면 제거). 바뀌었으면 true */
+function fbApplyEnt(st,k,key,v,del){
+  const an={task:"tasks",todo:"todos",memo:"memos",ledger:"ledger",account:"accounts"}[k];
+  const upsert=(a,match)=>{const i=a.findIndex(match);if(del){if(i>=0){a.splice(i,1);return true;}return false;}if(i>=0)a[i]=v;else a.push(v);return true;};
+  if(an){st[an]=st[an]||[];return upsert(st[an],x=>x&&String(x.id)===key);}
+  if(k==="asset"){st.assetHistory=st.assetHistory||[];return upsert(st.assetHistory,x=>x&&x.date===key);}
+  let mn={diary:"diary",diaryW:"diaryW",diaryM:"diaryM",done:"done"}[k],kk=key;
+  if(k==="plan"){mn=key.slice(0,2)==="M:"?"monthPlan":"weekPlan";kk=key.slice(2);}
+  if(mn){const m=st[mn]=st[mn]||{};if(del){if(kk in m){delete m[kk];return true;}return false;}m[kk]=v;return true;}
+  if(k==="set"&&key==="scopeKw"){if(!del&&Array.isArray(v)){st.scopeKw=v;return true;}return false;}
+  return false; // 모르는 종류(새 버전이 만든 항목) → 무시
+}
+function _fbErrText(e){
+  const c=(e&&e.code)||"";
+  const map={"auth/invalid-credential":"이메일 또는 비밀번호가 맞지 않아요","auth/invalid-login-credentials":"이메일 또는 비밀번호가 맞지 않아요","auth/wrong-password":"이메일 또는 비밀번호가 맞지 않아요",
+    "auth/user-not-found":"이 이메일로 만든 계정이 없어요 — '처음이면 계정 만들기'를 눌러 주세요","auth/email-already-in-use":"이미 만든 계정이에요 — '로그인'으로 들어가 주세요",
+    "auth/weak-password":"비밀번호가 너무 쉬워요 (6자 이상)","auth/invalid-email":"이메일 주소 형식이 아니에요","auth/missing-password":"비밀번호를 입력해 주세요",
+    "auth/network-request-failed":"인터넷 연결이 끊겼거나 서버에 닿지 못했어요","auth/too-many-requests":"시도가 너무 많아 잠시 막혔어요 — 몇 분 뒤 다시 해 주세요",
+    "auth/operation-not-allowed":"서버에서 이메일 로그인이 아직 켜지지 않았어요(관리자 설정 필요)","auth/user-disabled":"사용이 중지된 계정이에요",
+    "permission-denied":"서버가 권한 없음으로 거절했어요 (로그아웃 후 다시 로그인해 보세요)","unauthenticated":"로그인이 풀렸어요 — 다시 로그인해 주세요",
+    "unavailable":"서버에 닿지 못했어요 (오프라인)","resource-exhausted":"오늘 사용량 한도를 넘었어요 — 내일 자동으로 풀려요","deadline-exceeded":"서버 응답이 너무 늦어요"};
+  return map[c]||(typeof failReason==="function"?failReason(e):String((e&&e.message)||e));
+}
+function _fbWhen(ts){if(!ts)return "아직 없음";const d=new Date(ts),t=new Date();const hm=pad2(d.getHours())+":"+pad2(d.getMinutes());
+  return (d.toDateString()===t.toDateString()?"오늘 ":(d.getMonth()+1)+"/"+d.getDate()+" ")+hm;}
+function _fbMarkLast(){if(FB.meta){FB.meta.lastAt=Date.now();_fbSaveMeta();}}
+
+/* ---------- SDK 로드 + 초기화 (팀톡과 같은 10.12.2 / 팝업 해석기 없이 initializeAuth → iOS 홈화면 앱 안전) ---------- */
+function fbLoad(){
+  if(FB.loading)return FB.loading;
+  FB.loading=(async()=>{
+    const [A,U,F]=await Promise.all([import(FB_SDK+"firebase-app.js"),import(FB_SDK+"firebase-auth.js"),import(FB_SDK+"firebase-firestore.js")]);
+    const M=Object.assign({},A,U,F);
+    const app=M.initializeApp(FB_CFG);
+    const auth=M.initializeAuth(app,{persistence:[M.indexedDBLocalPersistence,M.browserLocalPersistence]});
+    if(FB_EMU)M.connectAuthEmulator(auth,"http://127.0.0.1:9099",{disableWarnings:true});
+    let db;
+    try{db=M.initializeFirestore(app,{ignoreUndefinedProperties:true,localCache:M.persistentLocalCache({tabManager:M.persistentMultipleTabManager()})});}
+    catch(e){db=M.initializeFirestore(app,{ignoreUndefinedProperties:true,localCache:M.memoryLocalCache()});}
+    if(FB_EMU)M.connectFirestoreEmulator(db,"127.0.0.1",8085);
+    Object.assign(FB,{M,app,auth,db});
+    M.onAuthStateChanged(auth,u=>{_fbAuthChanged(u);});
+    return M;
+  })();
+  FB.loading.catch(()=>{FB.loading=null;});
+  return FB.loading;
+}
+async function _fbAuthChanged(u){
+  FB.authReady=true;
+  if(!u){if(FB.unsub){FB.unsub();FB.unsub=null;}FB.user=null;fbRenderIcon();fbRenderUI();return;}
+  if(FB.authBusy||(FB.user&&FB.user.uid===u.uid&&FB.unsub))return;
+  FB.authBusy=true;FB.user=u;fbRenderIcon();fbRenderUI();
+  try{
+    if(!FB.meta||FB.meta.uid!==u.uid)await fbFirstMerge(u);
+    if(FB.meta&&FB.meta.uid===u.uid)fbListen();
+  }finally{FB.authBusy=false;fbRenderIcon();fbRenderUI();}
+}
+
+/* ---------- 처음 로그인: 백업 → 합치기 (지우지 않음) ---------- */
+function _fbHasLocalData(){const s=state;return !!((s.tasks||[]).length||(s.todos||[]).length||(s.memos||[]).length||(s.ledger||[]).length||Object.keys(s.diary||{}).length||Object.keys(s.diaryW||{}).length||Object.keys(s.diaryM||{}).length||Object.keys(s.monthPlan||{}).length||Object.keys(s.weekPlan||{}).length);}
+async function fbPreBackup(){
+  // ① 기기 안 안전 사본(별도 IndexedDB 'myPlannerPresync') ② 백업 파일 저장/공유(기존 exportData 그대로)
+  try{const snap=JSON.stringify(state);await new Promise(res=>{const r=indexedDB.open("myPlannerPresync",1);
+    r.onupgradeneeded=e=>e.target.result.createObjectStore("snap");
+    r.onsuccess=e=>{try{const db=e.target.result,tx=db.transaction("snap","readwrite");tx.objectStore("snap").put(snap,"presync_"+Date.now());tx.oncomplete=()=>{db.close();res();};tx.onerror=()=>{db.close();res();};}catch(x){res();}};
+    r.onerror=()=>res();});}catch(e){}
+  try{await exportData();}catch(e){}
+  toast("🛟 합치기 전에 지금 기록을 백업 파일로 저장했어요");
+}
+async function fbFirstMerge(u){
+  FB.firstBusy=true;fbSetMsg("이 기기 기록과 클라우드 기록을 합치는 중…");fbRenderIcon();
+  try{
+    if(_fbHasLocalData())await fbPreBackup();
+    const M=FB.M,snap=await M.getDocsFromServer(M.collection(FB.db,"users",u.uid,"items"));
+    const R={};snap.forEach(d=>{const x=d.data();if(x&&typeof x.u==="number"&&FB_KINDS.has(_fbSplit(d.id).k))R[d.id]=x;});
+    // 1) 클라우드(삭제 아님)를 상태 모양으로 → 기존 병합 도우미로 합침. 같은 시각이면 클라우드 우선, 기기 쪽이 '더 최근'일 때만 기기 우선
+    const rs={tasks:[],todos:[],memos:[],ledger:[],accounts:[],assetHistory:[],diary:{},diaryW:{},diaryM:{},monthPlan:{},weekPlan:{},done:{}};
+    for(const id in R){const d=R[id];if(d.del)continue;let v;try{v=JSON.parse(d.v);}catch(e){continue;}const s=_fbSplit(id);fbApplyEnt(rs,s.k,s.key,v,false);}
+    const L=state,noId=a=>(a||[]).filter(x=>!x||x.id==null);
+    L.tasks=_mergeById(rs.tasks,L.tasks).concat(noId(L.tasks));
+    L.todos=_mergeById(rs.todos,L.todos).concat(noId(L.todos));
+    L.memos=_mergeById(rs.memos,L.memos).concat(noId(L.memos));
+    L.ledger=_mergeById(rs.ledger,L.ledger).concat(noId(L.ledger));
+    L.accounts=_mergeById(rs.accounts,L.accounts).concat(noId(L.accounts));
+    L.assetHistory=_mergeByDate(rs.assetHistory,L.assetHistory);
+    L.diary=_mergeDiary(rs.diary,L.diary);L.diaryW=_mergeDiary(rs.diaryW,L.diaryW);L.diaryM=_mergeDiary(rs.diaryM,L.diaryM);
+    L.monthPlan=Object.assign({},L.monthPlan||{},rs.monthPlan);L.weekPlan=Object.assign({},L.weekPlan||{},rs.weekPlan);
+    L.done=Object.assign({},L.done||{},rs.done);
+    if(Array.isArray(rs.scopeKw))L.scopeKw=[...new Set(rs.scopeKw.concat(L.scopeKw||[]))];
+    // 2) 클라우드 삭제표시: 기기 쪽이 그 삭제보다 나중에 고친 게 아니면 기기에서도 지움
+    const E1=fbEntities(L);
+    for(const id in R){const d=R[id];if(!d.del||!E1[id])continue;let lv=null;try{lv=JSON.parse(E1[id].j);}catch(e){}
+      if(_fbTs(lv)<=d.u){const s=_fbSplit(id);fbApplyEnt(L,s.k,s.key,null,true);}}
+    normalizeState();_writeState();
+    // 3) 기준표(meta): 클라우드와 같은 항목만 '동기화됨'으로 기록 → 나머지(기기에만 있거나 기기가 이긴 것)는 아래 fbDiff가 올림
+    const E2=fbEntities(),m={};
+    for(const id in R){const d=R[id];if(d.del){if(!E2[id])m[id]=[0,d.u];}else if(E2[id]&&E2[id].j===d.v)m[id]=[_fbHash(d.v),d.u];}
+    FB.meta={uid:u.uid,email:u.email||"",m,lastAt:Date.now()};_fbSaveMeta();
+    FB.firstBusy=false;
+    const up=fbDiff(),down=Object.keys(R).filter(id=>!R[id].del).length;
+    _fbRerender();renderGoogleUI();
+    fbSetMsg("");toast(`☁️ 동기화 시작 — 클라우드 ${down}건 · 이 기기에서 ${up}건 올림`);
+  }catch(e){
+    FB.firstBusy=false;fbSetMsg("");FB.err={src:"first",e};
+    if(!(e&&e.isSaveErr))showFail({what:"처음 동기화를 시작하지 못했어요",why:_fbErrText(e),hint:"처음 연결할 때는 인터넷이 필요해요. 이 기기의 기록은 그대로예요. 연결된 뒤 '다시 시도'를 눌러 주세요.",retry:()=>{FB.err=null;if(FB.auth&&FB.auth.currentUser){FB.user=null;_fbAuthChanged(FB.auth.currentUser);}}});
+  }
+  fbRenderIcon();fbRenderUI();
+}
+
+/* ---------- 바뀐 항목만 올리기 ---------- */
+function fbScheduleDiff(){if(!fbActive()||!FB.user||FB.firstBusy)return;clearTimeout(FB.diffT);FB.diffT=setTimeout(fbDiff,1200);}
+function fbDiff(){
+  clearTimeout(FB.diffT);FB.diffT=null;
+  if(!FB.user||!FB.db||!FB.meta||FB.meta.uid!==FB.user.uid||FB.firstBusy)return 0;
+  const E=fbEntities(),m=FB.meta.m,ops=[],now=Date.now();
+  for(const id in E){const h=_fbHash(E[id].j),cur=m[id];if(!cur||cur[0]!==h)ops.push({id,k:E[id].k,key:E[id].key,v:E[id].j,del:false,h,prev:cur,u:Math.max(now,cur?cur[1]+1:0)});}
+  for(const id in m){if(m[id][0]===0||E[id]||FB.skipIds.has(id))continue;const s=_fbSplit(id);if(!FB_KINDS.has(s.k))continue;
+    ops.push({id,k:s.k,key:s.key,v:null,del:true,h:0,prev:m[id],u:Math.max(now,m[id][1]+1)});}
+  if(!ops.length)return 0;
+  ops.forEach(o=>{m[o.id]=[o.h,o.u];});_fbSaveMeta();
+  fbPush(ops);
+  return ops.length;
+}
+function fbPush(ops){
+  const M=FB.M,uid=FB.user.uid,dv=_fbDev();
+  for(let i=0;i<ops.length;i+=400){
+    const part=ops.slice(i,i+400),b=M.writeBatch(FB.db);
+    part.forEach(o=>b.set(M.doc(FB.db,"users",uid,"items",o.id),{k:o.k,id:o.key,v:o.v,u:o.u,del:o.del,dv}));
+    FB.pending++;fbRenderIcon();
+    b.commit().then(()=>{FB.pending--;_fbMarkLast();if(FB.err&&FB.err.src==="push")FB.err=null;fbRenderIcon();fbRenderUI();})
+    .catch(e=>{
+      FB.pending--;
+      const m=FB.meta&&FB.meta.m;if(m){part.forEach(o=>{const c=m[o.id];if(c&&c[1]===o.u){if(o.prev)m[o.id]=o.prev;else delete m[o.id];}});_fbSaveMeta();}
+      FB.err={src:"push",e};fbRenderIcon();fbRenderUI();
+      showFail({what:"동기화 서버에 "+part.length+"건을 올리지 못했어요",why:_fbErrText(e),hint:"기기에 저장된 기록은 안전해요. '다시 시도'를 누르면 다시 올려요.",retry:()=>{FB.err=null;fbDiff();fbRenderIcon();}});
+    });
+  }
+}
+
+/* ---------- 다른 기기 변경 받기 (실시간) ---------- */
+function fbListen(){
+  if(!FB.user||!FB.db)return;
+  if(FB.unsub){FB.unsub();FB.unsub=null;}
+  const M=FB.M;
+  FB.unsub=M.onSnapshot(M.collection(FB.db,"users",FB.user.uid,"items"),{includeMetadataChanges:true},_fbOnSnap,e=>{
+    FB.unsub=null;FB.err={src:"listen",e};fbRenderIcon();fbRenderUI();
+    showFail({what:"동기화 연결이 끊겼어요",why:_fbErrText(e),hint:"기기에 저장된 기록은 안전해요. '다시 시도'를 누르면 다시 연결해요.",retry:()=>{FB.err=null;fbListen();fbRenderIcon();}});
+  });
+  fbDiff(); // 앱이 꺼져 있던 동안 바뀐 것 올리기
+}
+function _fbOnSnap(snap){
+  if(!FB.meta||!FB.user||FB.meta.uid!==FB.user.uid)return;
+  fbDiff(); // 아직 안 보낸 이 기기 변경을 먼저 확정 → 나중에 고친 쪽이 이김
+  const m=FB.meta.m;let changed=0,resend=0;
+  snap.docChanges().forEach(ch=>{
+    if(ch.type==="removed"||ch.doc.metadata.hasPendingWrites)return;
+    const d=ch.doc.data(),id=ch.doc.id;if(!d||typeof d.u!=="number")return;
+    const s=_fbSplit(id);if(!FB_KINDS.has(s.k))return;
+    const cur=m[id];
+    // 서버에 '더 옛날' 내용이 덮였을 때(오프라인이던 기기가 늦게 올린 경우) → 이 기기의 더 새 내용을 다시 올려 맞춤
+    if(cur&&cur[1]>d.u){const rh=d.del?0:_fbHash(d.v||"");if(cur[0]!==-1&&rh!==cur[0]){m[id]=[-1,cur[1]];resend++;}return;}
+    if(cur&&cur[1]===d.u)return;
+    if(d.del){if(fbApplyEnt(state,s.k,s.key,null,true))changed++;m[id]=[0,d.u];return;}
+    let v;try{v=JSON.parse(d.v);}catch(e){return;}
+    const h=_fbHash(d.v);if(!cur||cur[0]!==h){if(fbApplyEnt(state,s.k,s.key,v,false))changed++;}
+    m[id]=[h,d.u];
+  });
+  FB.fromCache=snap.metadata.fromCache;
+  if(!snap.metadata.fromCache){FB.meta.lastAt=Date.now();if(FB.err&&FB.err.src==="listen")FB.err=null;}
+  _fbSaveMeta();
+  if(changed){normalizeState();try{_writeState();}catch(e){_saveFailPanel(e);}_fbRerender();}
+  if(resend)fbDiff(); // 표시(-1)된 항목은 해시가 달라 다시 올라감
+  fbRenderIcon();fbRenderUI();
+}
+function _fbRerender(){
+  try{renderAll();}catch(e){console.error(e);}
+  try{if(typeof renderMemos==="function")renderMemos();}catch(e){console.error(e);}
+  try{if(curTab==="todo"&&typeof renderTodos==="function")renderTodos();}catch(e){console.error(e);}
+  try{if(typeof renderKw==="function")renderKw();}catch(e){console.error(e);}
+}
+
+/* ---------- 로그인 · 계정 만들기 · 로그아웃 ---------- */
+function fbSetMsg(t,isErr){const el=document.getElementById("fbMsg");if(!el)return;el.textContent=t||"";el.classList.toggle("err",!!isErr);}
+async function fbSubmit(){
+  const em=document.getElementById("fbEmail").value.trim(),pw=document.getElementById("fbPw").value,create=FB.mode==="create";
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){fbSetMsg("이메일 주소를 확인해 주세요",1);return;}
+  if(pw.length<6){fbSetMsg("비밀번호는 6자 이상이에요",1);return;}
+  if(create&&pw!==document.getElementById("fbPw2").value){fbSetMsg("비밀번호 확인이 달라요 — 같은 비밀번호를 두 번 입력해 주세요",1);return;}
+  if(!navigator.onLine){fbSetMsg("인터넷에 연결된 뒤 다시 눌러 주세요",1);return;}
+  const btn=document.getElementById("fbSubmit");btn.disabled=true;fbSetMsg(create?"계정 만드는 중…":"로그인 중…");
+  try{
+    const M=await fbLoad();
+    if(create)await M.createUserWithEmailAndPassword(FB.auth,em,pw);else await M.signInWithEmailAndPassword(FB.auth,em,pw);
+    document.getElementById("fbPw").value="";document.getElementById("fbPw2").value="";FB.mode="login";
+    if(!FB.firstBusy)fbSetMsg("");
+  }catch(e){fbSetMsg(_fbErrText(e),1);}
+  btn.disabled=false;fbRenderUI();
+}
+async function fbLogout(){
+  if(!confirm("로그아웃할까요?\n이 기기의 기록은 그대로 남고, 다른 기기와 자동으로 맞추는 것만 멈춰요."))return;
+  try{fbDiff();if(FB.M&&FB.db)await Promise.race([FB.M.waitForPendingWrites(FB.db),new Promise(r=>setTimeout(r,4000))]);}catch(e){}
+  try{if(FB.unsub){FB.unsub();FB.unsub=null;}if(FB.auth)await FB.M.signOut(FB.auth);}catch(e){}
+  FB.user=null;FB.meta=null;FB.err=null;FB.pending=0;_fbSaveMeta();
+  fbRenderIcon();fbRenderUI();renderGoogleUI();toast("로그아웃했어요 — 이 기기 기록은 그대로예요");
+}
+async function fbSyncNow(){
+  if(!FB.user){fbOpenSheet();return;}
+  if(!FB.meta||FB.meta.uid!==FB.user.uid){FB.err=null;const cu=FB.auth&&FB.auth.currentUser;FB.user=null;if(cu)_fbAuthChanged(cu);return;}
+  if(!navigator.onLine){toast("오프라인이에요 — 연결되면 자동으로 맞춰요");return;}
+  FB.err=null;if(!FB.unsub)fbListen();else fbDiff();fbRenderIcon();fbRenderUI();
+  try{
+    await Promise.race([FB.M.waitForPendingWrites(FB.db),new Promise((_,rj)=>setTimeout(()=>rj(new Error("서버 응답이 15초 넘게 없어요")),15000))]);
+    _fbMarkLast();toast("☁️ 동기화 완료");
+  }catch(e){showFail({what:"동기화를 마치지 못했어요",why:_fbErrText(e),hint:"기기에 저장된 기록은 안전해요. 연결되면 자동으로 이어서 올려요.",retry:fbSyncNow});}
+  if(gcalOn()&&gIsConnected())syncNow(false);
+  fbRenderIcon();fbRenderUI();
+}
+
+/* ---------- 상태 표시 (☁️ 버튼 점 + 동기화 시트) ---------- */
+function fbStatus(){
+  if(!fbActive()&&!FB.user)return "off";
+  if(FB.firstBusy)return "syncing";
+  if(!navigator.onLine)return "offline";
+  if(FB.err)return "err";
+  if(!FB.user)return (FB.authReady&&!FB.authBusy)?"login":"syncing";
+  if(FB.pending>0||FB.fromCache)return "syncing";
+  return "ok";
+}
+var FB_ST={off:["#9ca3af","로그인 안 됨"],ok:["#22c55e","연결됨"],syncing:["#f59e0b","동기화 중…"],offline:["#9ca3af","오프라인 — 연결되면 자동으로 맞춰요"],err:["#ef4444","오류"],login:["#ef4444","다시 로그인이 필요해요"]};
+function fbRenderIcon(){
+  const b=document.getElementById("syncBtn");if(!b)return;
+  const s=fbStatus();
+  if(s==="off"){b.dataset.st="off";if(typeof gIsConnected==="function"&&gIsConnected()){b.style.opacity="1";b.textContent="☁️";}else{b.textContent="☁️";b.style.opacity=".55";}b.title="동기화: 로그인 안 됨 — 눌러서 로그인";b.setAttribute("aria-label",b.title);return;}
+  b.dataset.st=s;b.style.opacity="1";b.textContent=s==="err"?"⚠️":"☁️";
+  b.title="동기화: "+FB_ST[s][1];b.setAttribute("aria-label",b.title);
+}
+function fbRenderUI(){
+  const card=document.getElementById("fbStatusCard");if(!card)return;
+  const s=fbStatus(),inn=!!FB.user,email=(FB.user&&FB.user.email)||(FB.meta&&FB.meta.email)||"",st=FB_ST[s]||FB_ST.off;
+  document.getElementById("fbOut").hidden=inn;document.getElementById("fbIn").hidden=!inn;
+  const dot=`<span class="fb-dot" style="background:${st[0]}"></span>`;
+  const errTxt=(s==="err"&&FB.err)?" — "+esc(_fbErrText(FB.err.e)):"";
+  if(inn)card.innerHTML=`${dot}<b>${esc(st[1])}</b>${errTxt}<br>연결된 이메일: <b>${esc(email)}</b><br>마지막 동기화: ${_fbWhen(FB.meta&&FB.meta.lastAt)}`+
+    (FB.skipped?`<br><span style="color:var(--amber);font-size:12.5px">너무 큰 항목 ${FB.skipped}개는 동기화에서 빠졌어요(사진이 글 안에 들어간 옛 기록 등)</span>`:"");
+  else if(fbActive())card.innerHTML=`${dot}<b>${s==="syncing"?"연결 확인 중…":esc(st[1])}</b><br>${esc(email)} 계정으로 다시 로그인하면 이어서 맞춰요. 그동안 기록은 이 기기에 안전하게 저장돼요.`;
+  else card.innerHTML=`${dot}<b>로그인 안 됨</b><br><span style="font-size:13px;color:var(--muted)">지금은 이 기기에만 저장돼요.</span>`;
+  const g=document.getElementById("fbGcal");if(g)g.checked=gcalOn();
+  const create=FB.mode==="create";
+  document.getElementById("fbPw2Wrap").hidden=!create;
+  document.getElementById("fbSubmit").textContent=create?"계정 만들고 시작하기":"로그인";
+  document.getElementById("fbMode").textContent=create?"이미 계정이 있어요 → 로그인":"처음이면 계정 만들기";
+  document.getElementById("fbPw").setAttribute("autocomplete",create?"new-password":"current-password");
+  const em=document.getElementById("fbEmail");if(em&&!em.value&&email)em.value=email;
+  const ms=document.getElementById("fbMenuStatus");
+  if(ms)ms.innerHTML=inn?`${dot}<b>${esc(st[1])}</b> · ${esc(email)}<br><span style="font-size:12.5px;color:var(--muted)">마지막 동기화: ${_fbWhen(FB.meta&&FB.meta.lastAt)}</span>`
+    :(fbActive()?`${dot}<b>${esc(st[1])}</b> · ${esc(email)}`:`${dot}<b>로그인 안 됨</b> — 폰·PC를 같이 쓰려면 로그인하세요`);
+  const gn=document.getElementById("gFbNote");if(gn)gn.hidden=!fbActive();
+}
+function fbOpenSheet(){
+  fbRenderUI();openOverlay("syncSheet");
+  if(!FB.M&&navigator.onLine)fbLoad().then(()=>fbRenderUI()).catch(e=>fbSetMsg("동기화 기능을 불러오지 못했어요 — "+_fbErrText(e),1));
+}
+function fbBoot(){
+  document.getElementById("fbSubmit").onclick=fbSubmit;
+  document.getElementById("fbMode").onclick=()=>{FB.mode=FB.mode==="create"?"login":"create";fbSetMsg("");fbRenderUI();};
+  document.getElementById("fbPw").addEventListener("keydown",e=>{if(e.key==="Enter"&&FB.mode!=="create"){e.preventDefault();fbSubmit();}});
+  document.getElementById("fbPw2").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();fbSubmit();}});
+  document.getElementById("fbLogout").onclick=fbLogout;
+  document.getElementById("fbSyncNow").onclick=fbSyncNow;
+  document.getElementById("mFbOpen").onclick=fbOpenSheet;
+  document.getElementById("fbGcal").onchange=e=>{
+    try{if(e.target.checked)localStorage.setItem("mp.gcalOn","1");else localStorage.removeItem("mp.gcalOn");}catch(x){}
+    if(e.target.checked){if(gIsConnected()){toast("구글 캘린더에도 보내요");scheduleSync();}else toast("설정(⚙️) → '구글 계정 연결'도 해 주세요");}
+    else toast("구글 캘린더로 보내기를 껐어요");
+  };
+  window.addEventListener("online",()=>{if(FB.err&&FB.err.src==="load")FB.err=null;if(fbActive()&&!FB.M)fbLoad().catch(()=>{});if(FB.user)fbDiff();fbRenderIcon();fbRenderUI();});
+  window.addEventListener("offline",()=>{fbRenderIcon();fbRenderUI();});
+  document.addEventListener("visibilitychange",()=>{if(document.hidden&&FB.user)fbDiff();}); // 앱을 내리기 전 남은 변경 즉시 확정
+  window.addEventListener("pagehide",()=>{if(FB.user)fbDiff();});
+  fbRenderIcon();fbRenderUI();
+  if(fbActive())setTimeout(()=>{fbLoad().catch(e=>{FB.err={src:"load",e};fbRenderIcon();fbRenderUI();});},300);
 }
 
 /* ---------- init ---------- */
@@ -4775,7 +5162,7 @@ function init(){
   // 여러 줄 입력칸: Shift+Enter는 줄바꿈, Enter(단독)는 인식 실행
   document.getElementById("fQuick").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();applyQuick();}});
   document.getElementById("fQuick").addEventListener("paste",()=>setTimeout(applyQuick,60));
-  document.getElementById("menuBtn").onclick=()=>{renderGoogleUI();updateStorageLine();renderKw();openOverlay("menuSheet");};
+  document.getElementById("menuBtn").onclick=()=>{fbRenderUI();renderGoogleUI();updateStorageLine();renderKw();openOverlay("menuSheet");};
   document.getElementById("mExport").onclick=exportData;
   document.getElementById("mImport").onclick=()=>document.getElementById("importFile").click();
   document.getElementById("importFile").onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);};
@@ -4788,7 +5175,7 @@ function init(){
       save();renderAll();toast("정리했어요");closeMenu();scheduleSync();}
   };
   document.getElementById("mReset").onclick=()=>{
-    if(confirm("정말 모든 데이터를 삭제할까요? 복구할 수 없습니다."))
+    if(confirm("정말 모든 데이터를 삭제할까요? 복구할 수 없습니다."+(fbActive()?"\n\n☁️ 동기화 중이라 같은 계정의 다른 기기(폰·PC)에서도 모두 지워져요.":"")))
       {const keepDel=state.gdel||[];state={tasks:[],done:{},diary:{},diaryW:{},diaryM:{},todos:[],memos:[],monthPlan:{},weekPlan:{},ledger:[],accounts:[],assetHistory:[],notified:{},impFlags:{},gdel:keepDel,gSyncToken:null,gLast:0};save();renderAll();renderMemos();toast("초기화했어요");closeMenu();}
   };
   // Google sync wiring
@@ -4809,7 +5196,8 @@ function init(){
     try{await gGetToken(true);toast("백업 권한을 추가했어요");renderGoogleUI();gDriveBackup(false);}
     catch(e){G.token=old;toast("재연결이 취소됐어요");}
   };
-  document.getElementById("syncBtn").onclick=()=>{
+  document.getElementById("syncBtn").onclick=fbOpenSheet; // 2026-11-17a: ☁️ = 동기화 화면
+  const _legacyGoogleSyncBtn=()=>{
     if(!gIsConnected()){openOverlay("menuSheet");return;}
     // standalone에서 토큰이 만료(임박 포함, 5분 여유)됐으면 사용자 터치 시점에 갱신(자동 팝업 억제의 수동 출구).
     // prompt 강제 consent 제거 후라 대부분 가벼운 확인으로 끝남(2026-08-07).
@@ -4817,6 +5205,7 @@ function init(){
     syncNow(false);
   };
   renderGoogleUI();updateSyncUI("idle");
+  fbBoot(); // ☁️ Firebase 동기화(로그인돼 있으면 자동 연결)
   window.addEventListener("online",()=>{if(gIsConnected()){syncNow(true);gAutoSync();}});
   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&gIsConnected()){syncNow(true);gAutoSync();}});
   if(gIsConnected()){setTimeout(()=>syncNow(true),800);setTimeout(gAutoSync,1200);}
