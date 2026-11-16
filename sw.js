@@ -2,7 +2,7 @@
    주의: VER은 index.html 상단 APPVER 주석과 함께 올릴 것 (앱 셸 캐시 무효화 기준).
    페이지(index)는 network-first → 기존 APPVER 자동 새로고침(checkAppUpdate)과 공존, 옛 페이지 고착 없음.
    구글 OAuth·API 등 외부 요청은 손대지 않음(동일 오리진만 처리). */
-const VER = "2026.11.16b";
+const VER = "2026.11.16c";
 const CACHE = "mp-" + VER;
 const SHELL = ["./", "manifest.json", "icon-192.png", "icon-512.png", "icon-maskable.png", "apple-touch-icon.png"];
 

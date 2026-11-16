@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:2026.11.16b-->
+<!--APPVER:2026.11.16c-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src data: blob:; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com https://generativelanguage.googleapis.com; frame-src https://accounts.google.com; worker-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -553,11 +553,11 @@
   <div class="sec-head" style="margin-top:6px">
     <div class="sec-title">📔 다이어리 <small id="diaryListSub"></small></div>
   </div>
-  <div class="filter-row scope-row"></div>
+  <div class="filter-row" id="diaryImpRow"></div>
   <div class="dseg" id="dSeg"><button data-m="d">일간</button><button data-m="w">주간</button><button data-m="m">월간</button></div>
   <div id="diaryListBody"></div>
   <div id="diaryPeriodBody" style="display:none"></div>
-  <input type="file" id="dpAlbum" accept="image/*" multiple style="display:none"><input type="file" id="dpCam" accept="image/*" capture="environment" style="display:none">
+  <input type="file" id="dpAlbum" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/gif" multiple style="display:none"><input type="file" id="dpCam" accept="image/*" capture="environment" style="display:none">
 </div>
 
 <div class="wrap view" id="ledgerView">
@@ -799,15 +799,13 @@
     <h3 id="diaryTitle">다이어리</h3>
     <label class="fld">날짜</label>
     <input type="date" id="dDate">
-    <label class="fld">구분</label>
-    <div class="scope-seg" id="dScopePick"></div>
     <div id="dDoneLine" style="display:none;font-size:12.5px;color:var(--accent2);cursor:pointer;margin-top:10px"></div>
     <label class="fld" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="dImp" style="width:20px;height:20px;flex:0 0 auto"> ⭐ 중요한 날</label>
     <label class="fld">기록</label>
     <textarea id="dText" rows="6" placeholder="이 날 하루는 어땠나요?"></textarea>
     <label class="fld">사진</label>
     <div class="photo-grid" id="photoGrid"></div>
-    <input type="file" id="photoInput" accept="image/*" multiple style="display:none">
+    <input type="file" id="photoInput" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/gif" multiple style="display:none">
     <input type="file" id="photoCam" accept="image/*" capture="environment" style="display:none">
     <button class="save-btn" id="dSave">저장</button>
     <button class="save-btn" id="dDelete" style="background:transparent;border:1px solid var(--red);color:var(--red);margin-top:10px">이 날 기록 삭제</button>
@@ -1436,6 +1434,7 @@ try{const a=JSON.parse(localStorage.getItem("mp.scopeFilter")||"[]");if(Array.is
 let impOnly=false;try{impOnly=localStorage.getItem("mp.impOnly")==="1";}catch(e){}
 function isImp(x){return !!(x&&(x.prio||x.imp));}
 function impStar(x){return isImp(x)?'<span style="color:#f5b301">★</span> ':'';}
+function impOK(x){return !impOnly||isImp(x);}
 function scopeOK(x){return (!impOnly||isImp(x))&&(!scopeFilter.length||scopeFilter.indexOf(scopeOf(x))>=0);}
 function sdot(k){return `<i class="sd" style="background:${SCOPES[k].hex}"></i>`;}
 function scopeTag(x){const k=scopeOf(x);return `<span class="scope-tag" style="color:${SCOPES[k].hex}">${sdot(k)}${SCOPES[k].name}</span>`;}
@@ -1453,6 +1452,8 @@ function renderScopeRows(){
   const act=filterActive();
   const parts=scopeFilter.map(k=>SCOPES[k].name).concat(impOnly?["⭐ 중요만"]:[]).concat(filter!=="all"&&CATS[filter]?[CATS[filter].name]:[]);
   const html=`<div class="chip fchip ${act?'active':''}" data-s="open">🔎 필터${act?" · "+parts.join(" · "):""}</div>`+(act?`<div class="chip" data-s="clear">✕ 해제</div>`:"");
+  const dr=document.getElementById("diaryImpRow");
+  if(dr){dr.innerHTML=`<div class="chip fchip ${impOnly?'active':''}">⭐ 중요만</div>`;dr.firstChild.onclick=()=>{impOnly=!impOnly;saveFilterPrefs();refreshFilterViews();};}
   document.querySelectorAll(".scope-row").forEach(row=>{
     row.innerHTML=html;
     row.querySelectorAll(".chip").forEach(el=>el.onclick=()=>{if(el.dataset.s==="clear")resetFilter();else{renderFilterSheet();openOverlay("filterSheet");}});
@@ -1751,7 +1752,7 @@ function renderDiaryList(){
   document.getElementById("diaryListBody").style.display="";pb.style.display="none";
   const el=document.getElementById("diaryListBody");
   const entries=Object.keys(state.diary||{})
-    .filter(ds=>{const d=state.diary[ds];return d&&!d.deleted&&scopeOK(d)&&(d.text||(d.photos&&d.photos.length));})
+    .filter(ds=>{const d=state.diary[ds];return d&&!d.deleted&&impOK(d)&&(d.text||(d.photos&&d.photos.length));})
     .sort((a,b)=>b.localeCompare(a));
   const sub=document.getElementById("diaryListSub");
   if(sub)sub.textContent=entries.length?entries.length+"개":"";
@@ -1763,7 +1764,7 @@ function renderDiaryList(){
     return `<div class="dl-card" data-ds="${ds}">
       ${thumb}
       <div class="dl-body">
-        <div class="dl-date">${impStar(d)}${fmtKDate(ds)} · ${lunarFull(ds)} ${scopeTag(d)}</div>
+        <div class="dl-date">${impStar(d)}${fmtKDate(ds)} · ${lunarFull(ds)}</div>
         ${d.text?`<div class="dl-text">${esc(d.text)}</div>`:`<div class="dl-text" style="color:var(--muted)">(사진만 ${pcount}장)</div>`}
         ${pcount?`<div class="dl-meta">📷 사진 ${pcount}장</div>`:""}
       </div>
@@ -1790,9 +1791,9 @@ function _addMonth(k,n){const d=new Date(+k.slice(0,4),+k.slice(5,7)-1+n,1);retu
 function _periodStore(w){return w?state.diaryW:state.diaryM;}
 function _firstLine(t){return ((t||"").split("\n").find(x=>x.trim())||"").trim();}
 function _dayEntries(from,to){
-  return Object.keys(state.diary||{}).filter(ds=>ds>=from&&ds<=to).filter(ds=>{const d=state.diary[ds];return d&&!d.deleted&&scopeOK(d)&&(d.text||(d.photos&&d.photos.length));}).sort();
+  return Object.keys(state.diary||{}).filter(ds=>ds>=from&&ds<=to).filter(ds=>{const d=state.diary[ds];return d&&!d.deleted&&impOK(d)&&(d.text||(d.photos&&d.photos.length));}).sort();
 }
-function _dayRow(ds){const d=state.diary[ds];const w=["일","월","화","수","목","금","토"][_pd(ds).getDay()];return `<div class="dp-row" data-ds="${ds}">${sdot(scopeOf(d))}${impStar(d)}<b>${+ds.slice(5,7)}/${+ds.slice(8)}(${w})</b><span>${esc(_firstLine(d.text)||("사진 "+(d.photos||[]).length+"장"))}</span></div>`;}
+function _dayRow(ds){const d=state.diary[ds];const w=["일","월","화","수","목","금","토"][_pd(ds).getDay()];return `<div class="dp-row" data-ds="${ds}">${impStar(d)}<b>${+ds.slice(5,7)}/${+ds.slice(8)}(${w})</b><span>${esc(_firstLine(d.text)||("사진 "+(d.photos||[]).length+"장"))}</span></div>`;}
 function setDiaryMode(m){dMode=m;try{localStorage.setItem("mp.diaryMode",m);}catch(e){}renderDiaryList();window.scrollTo(0,0);}
 function renderDiaryPeriod(){
   const w=dMode==="w",el=document.getElementById("diaryPeriodBody"),store=_periodStore(w);
@@ -1800,15 +1801,14 @@ function renderDiaryPeriod(){
   if(!w&&!dMonth)dMonth=todayStr().slice(0,7);
   const key=w?dWeek:dMonth,curKey=w?_mondayOf(todayStr()):todayStr().slice(0,7);
   const L=w?_weekLabel(key):null,ent=store[key]&&!store[key].deleted?store[key]:null;
-  if(dpScope===null||dpKeyShown!==dMode+key){dpScope=ent?scopeOf(ent):"private";dpKeyShown=dMode+key;}
+  if(dpKeyShown!==dMode+key){dpKeyShown=dMode+key;}
   const from=w?key:key+"-01",to=w?_addDays(key,6):key+"-31",days=_dayEntries(from,to);
-  const written=Object.keys(store).filter(k=>store[k]&&!store[k].deleted&&(store[k].text||(store[k].photos&&store[k].photos.length))&&scopeOK(store[k])).sort().reverse();
+  const written=Object.keys(store).filter(k=>store[k]&&!store[k].deleted&&(store[k].text||(store[k].photos&&store[k].photos.length))&&impOK(store[k])).sort().reverse();
   const phs=[];days.forEach(ds=>((state.diary[ds]&&state.diary[ds].photos)||[]).forEach(id=>phs.push([id,ds])));phs.splice(30);
   const lab=k=>w?(_weekLabel(k).t+" ("+_weekLabel(k).r+")"):_monthLabel(k);
   el.innerHTML=`<div class="dp-nav"><button id="dpPrev" aria-label="이전">◀</button>
     <div class="dp-t">${w?L.t:_monthLabel(key)}${w?`<small>${L.r}</small>`:""}</div><button id="dpNext" aria-label="다음">▶</button></div>
     ${key!==curKey?`<button class="dp-today" id="dpToday">${w?"이번 주":"이번 달"}</button>`:""}
-    <div class="scope-seg" id="dpScopePick" style="margin-bottom:8px"></div>
     <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:0 0 8px"><input type="checkbox" id="dpImp" ${ent&&ent.imp?"checked":""} style="width:18px;height:18px"> ⭐ 중요</label>
     <div class="photo-grid" id="dpPhotoGrid" style="margin-bottom:8px"></div>
     <textarea class="dp-text" id="dpText" placeholder="${w?"이번 주를 돌아보는 한 줄을 써보세요":"이번 달을 돌아보는 한 줄을 써보세요"}">${esc(ent?ent.text:"")}</textarea>
@@ -1817,8 +1817,7 @@ function renderDiaryPeriod(){
     ${days.length?days.map(_dayRow).join(""):`<div style="color:var(--muted);font-size:13px;padding:4px 2px">이 ${w?"주":"달"}에 쓴 일간 다이어리가 없어요.</div>`}
     ${phs.length?`<div class="dp-sub">이 ${w?"주":"달"}의 일간 사진 · ${phs.length}장</div><div class="dp-strip" id="dpStrip">${phs.map(x=>`<img class="dp-sp" data-pid="${x[0]}" data-ds="${x[1]}" alt="">`).join("")}</div>`:""}
     <div class="dp-sub">작성한 ${w?"주간":"월간"} 기록 · ${written.length}개</div>
-    ${written.length?written.map(k=>`<div class="dp-row ${k===key?"cur":""}" data-k="${k}">${sdot(scopeOf(store[k]))}${impStar(store[k])}<b>${lab(k)}</b><span>${esc(_firstLine(store[k].text)||"사진")}${store[k].photos&&store[k].photos.length?" 📷"+store[k].photos.length:""}</span></div>`).join(""):`<div style="color:var(--muted);font-size:13px;padding:4px 2px">아직 ${w?"주간":"월간"} 기록이 없어요. 위에 한 줄 남겨보세요.</div>`}`;
-  bindScopePick("dpScopePick",()=>dpScope,v=>{dpScope=v;});
+    ${written.length?written.map(k=>`<div class="dp-row ${k===key?"cur":""}" data-k="${k}">${impStar(store[k])}<b>${lab(k)}</b><span>${esc(_firstLine(store[k].text)||"사진")}${store[k].photos&&store[k].photos.length?" 📷"+store[k].photos.length:""}</span></div>`).join(""):`<div style="color:var(--muted);font-size:13px;padding:4px 2px">아직 ${w?"주간":"월간"} 기록이 없어요. 위에 한 줄 남겨보세요.</div>`}`;
   if(dpPhotosKey!==dMode+key){dpPhotosKey=dMode+key;dpPhotos=[];const pk=dpPhotosKey;
     Promise.all(((ent&&ent.photos)||[]).map(id=>idbGet(id).then(d=>d?{id,data:d}:null))).then(a=>{if(dpPhotosKey!==pk)return;dpPhotos=a.filter(Boolean);drawDpPhotos();});}
   drawDpPhotos();
@@ -1841,7 +1840,7 @@ async function saveDiaryPeriod(w,key){
     newIds.push(p.id);
   }
   oldIds.filter(o=>newIds.indexOf(o)<0).forEach(id=>idbDel(id));
-  store[key]={text,photos:newIds,scope:dpScope||"private",imp:document.getElementById("dpImp").checked||undefined,mtime:Date.now()};
+  store[key]={text,photos:newIds,scope:(store[key]&&store[key].scope)||undefined,imp:document.getElementById("dpImp").checked||undefined,mtime:Date.now()};
   try{save();}catch(e){return;} // 실패 안내는 save()가 패널로 띄움(글은 입력창에 그대로)
   renderDiaryPeriod();toast((w?"주간":"월간")+" 다이어리 저장 완료");
 }
@@ -1866,9 +1865,9 @@ async function loadDiary(ds){
 }
 async function openDiary(){
   await loadDiary(selDate);
-  curDScope=scopeOf(state.diary[diaryDate||selDate]);
+  curDScope=(state.diary[diaryDate||selDate]||{}).scope; // 보존만(화면엔 안 보임)
   {const dd=diaryDate||selDate,n=activeTodos().filter(x=>x.done&&x.completedAt&&_ymd(new Date(x.completedAt))===dd).length,l=document.getElementById("dDoneLine");
-   l.style.display=n?"":"none";l.textContent=`✅ 이 날 완료한 일 ${n}개 → 보기`;l.onclick=()=>{closeOverlay("diarySheet");tdDoneOpen=true;switchTab("todo");};}document.getElementById("dImp").checked=!!(state.diary[diaryDate||selDate]&&state.diary[diaryDate||selDate].imp);bindScopePick("dScopePick",()=>curDScope,v=>{curDScope=v;});
+   l.style.display=n?"":"none";l.textContent=`✅ 이 날 완료한 일 ${n}개 → 보기`;l.onclick=()=>{closeOverlay("diarySheet");tdDoneOpen=true;switchTab("todo");};}document.getElementById("dImp").checked=!!(state.diary[diaryDate||selDate]&&state.diary[diaryDate||selDate].imp);
   openOverlay("diarySheet");
 }
 function renderPhotoGrid(){drawPhotos("photoGrid",curPhotos,"photoInput","photoCam",renderPhotoGrid);}
@@ -1876,7 +1875,7 @@ function renderPhotoGrid(){drawPhotos("photoGrid",curPhotos,"photoInput","photoC
 function drawPhotos(gridId,arr,albId,camId,redraw){
   const g=document.getElementById(gridId);if(!g)return;
   g.innerHTML=arr.map((p,i)=>`<div class="photo-thumb"><img src="${p.data}" data-vi="${i}"><button class="rm" data-ri="${i}">✕</button>${arr.length>1?`<div class="ph-mv">${i>0?`<button data-mi="${i}" data-d="-1">◀</button>`:"<span></span>"}${i<arr.length-1?`<button data-mi="${i}" data-d="1">▶</button>`:"<span></span>"}</div>`:""}</div>`).join("")
-    +`<div class="add-photo" data-k="cam">📷<small>카메라</small></div><div class="add-photo" data-k="alb">🖼️<small>앨범</small></div>`;
+    +`<div class="add-photo" data-k="cam">📷<small>촬영</small></div><div class="add-photo" data-k="alb">🖼️<small>앨범</small></div>`;
   g.querySelectorAll(".rm").forEach(b=>b.onclick=()=>{arr.splice(+b.dataset.ri,1);redraw();});
   g.querySelectorAll(".ph-mv button").forEach(b=>b.onclick=()=>{const i=+b.dataset.mi,d=+b.dataset.d;const t=arr[i];arr[i]=arr[i+d];arr[i+d]=t;redraw();});
   g.querySelectorAll(".photo-thumb img").forEach(img=>img.onclick=()=>openViewerList(arr.map(p=>p.data),+img.dataset.vi));
@@ -1924,7 +1923,7 @@ async function saveDiary(){
   // 편집 중 제거된 사진은 IndexedDB에서도 정리
   for(const oid of oldIds){if(newIds.indexOf(oid)<0)idbDel(oid);}
   if(!text&&!newIds.length){if(state.diary[ds])state.diary[ds]={deleted:true,mtime:Date.now()};}  // 내용 비우면 삭제표시(기기간 전파)
-  else state.diary[ds]={text,photos:newIds,scope:curDScope,imp:document.getElementById("dImp").checked||undefined,mtime:Date.now()};
+  else state.diary[ds]={text,photos:newIds,scope:curDScope||undefined,imp:document.getElementById("dImp").checked||undefined,mtime:Date.now()};
   try{save();}catch(e){return;} // 실패 안내는 save()가 패널로 띄움(토스트 중복 금지)
   selDate=ds;
   closeOverlay("diarySheet");
