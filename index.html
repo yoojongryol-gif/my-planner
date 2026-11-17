@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:2026.11.17b-->
+<!--APPVER:2026.11.17c-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com https://www.gstatic.com; style-src 'unsafe-inline'; img-src 'self' data: blob: https://www.google.com; media-src data: blob:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.gstatic.com http://127.0.0.1:9099 http://127.0.0.1:8085 https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com https://generativelanguage.googleapis.com; frame-src https://accounts.google.com; worker-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -506,6 +506,74 @@
   .fb-sec-btn:active{transform:scale(.98)}
   .fb-sw{display:flex;align-items:center;gap:12px;padding:14px;border-radius:12px;background:var(--surface2);margin-top:12px;font-size:15px;cursor:pointer;line-height:1.45}
   .fb-sw input{width:26px;height:26px;flex:0 0 auto;margin:0}
+  /* 2026-11-17c 설정·동기화 화면 정리: 묶음 카드 + 제목 + 한 줄 설명, 누르는 곳 44px 이상 */
+  #menuSheet [hidden],#syncSheet [hidden]{display:none!important}
+  .set-sheet{background:var(--bg)}
+  .set-g{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 14px 12px;margin:0 0 12px}
+  .set-h{margin:0 0 10px}
+  .set-h b{display:block;font-size:15.5px;line-height:1.35}
+  .set-h span{display:block;font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:3px}
+  .set-g .fb-card{margin-bottom:10px}
+  .set-g .fb-sw{margin-top:0;min-height:52px}
+  .set-g .menu-item{min-height:48px;padding:12px 10px;margin:0 -4px;border-radius:11px}
+  .set-g .menu-item+.menu-item{border-top:1px solid var(--line);border-radius:0}
+  .set-stat{font-size:13px;color:var(--muted);background:var(--surface2);border-radius:11px;padding:11px 12px;margin:10px 0;line-height:1.55}
+  .set-stat.sm{font-size:12px;padding:9px 11px;margin:6px 0}
+  .set-stat:empty{display:none}
+  .set-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 8px}
+  .set-btn{min-height:48px;width:100%;background:var(--surface2);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+  .set-btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+  .set-btn.warn{color:var(--amber)}
+  .set-btn.wide{display:block;margin:0 0 8px}
+  .set-btn:active{transform:scale(.98)}
+  .set-btn:disabled{opacity:.6}
+  .set-adv>summary{list-style:none;cursor:pointer;min-height:44px;display:flex;flex-direction:column;justify-content:center;padding-right:28px;position:relative}
+  .set-adv>summary::-webkit-details-marker{display:none}
+  .set-adv>summary::after{content:"▾";position:absolute;right:4px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:16px}
+  .set-adv[open]>summary::after{content:"▴"}
+  .set-adv>summary b{font-size:15.5px}
+  .set-adv>summary span{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.5}
+  .adv-sub{font-size:12.5px;font-weight:700;color:var(--muted);margin:16px 0 4px;letter-spacing:.02em}
+  .set-adv input{width:100%;min-height:46px;margin:4px 0 2px}
+  .set-ver{color:var(--muted);font-size:11.5px;margin:6px 0 0;text-align:center}
+  .kw-list{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+  .kw-chip{display:inline-flex;align-items:center;min-height:44px;padding:0 0 0 14px;border-radius:22px;background:var(--surface2);border:1px solid var(--line);font-size:13.5px;color:var(--text)}
+  .kw-x{min-width:44px;min-height:44px;border:none;background:none;color:var(--muted);font-size:14px;cursor:pointer;padding:0 12px 0 8px}
+  .kw-add input{min-height:46px}.kw-add button{min-height:46px}
+  .fb-lead{font-size:14px;line-height:1.65;margin:2px 2px 4px}
+  .fb-foot{font-size:12.5px;color:var(--muted);line-height:1.65;margin:12px 2px 0}
+  .fb-pw{position:relative}
+  .fb-pw .fb-in{padding-right:78px;width:100%}
+  .fb-eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);min-width:64px;min-height:44px;border:none;background:none;color:var(--accent2);font-weight:700;font-size:14px;cursor:pointer;border-radius:10px}
+  .fb-code{font-size:11.5px;color:var(--muted);margin-top:4px;font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
+  .fb-msg.ok{color:var(--green);font-weight:600}
+  .fb-link{display:block;margin:6px auto 0;min-height:44px;padding:0 14px;background:none;border:none;color:var(--accent2);font-size:14.5px;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+  .dg-box{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+  .dg-help{font-size:12px;color:var(--muted);line-height:1.55;margin:6px 2px 8px}
+  .dg-out{background:var(--surface2);border-radius:12px;padding:8px 12px;margin:0 0 8px;font-size:12.5px;line-height:1.5}
+  .dg-row{display:flex;gap:10px;padding:5px 0;border-bottom:1px dashed var(--line)}
+  .dg-row:last-child{border-bottom:none}
+  .dg-k{flex:0 0 40%;color:var(--muted);font-weight:600;word-break:keep-all}
+  .dg-v{flex:1;min-width:0;word-break:break-all}
+  .dg-busy{color:var(--accent2);font-weight:700}
+  #syncSheet .set-btns{margin-top:4px}
+  .sheet-close::after{content:"";position:absolute;inset:-6px}
+  .mi-n{color:var(--muted);font-size:13px;margin-left:4px}
+  .rs-d{color:var(--muted);font-size:13px;line-height:1.6;margin:0 0 10px}
+  .rs-srcs{display:flex;flex-direction:column;gap:6px;margin:0 0 10px}
+  .rs-src{min-height:44px;text-align:left;background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:11px;padding:8px 12px;font-size:13.5px;cursor:pointer;font-family:inherit}
+  .rs-src.on{border-color:var(--accent2);color:var(--accent2);font-weight:700;background:var(--surface)}
+  .rs-list{max-height:46vh;overflow-y:auto;margin:0 0 6px}
+  .rs-g{border:1px solid var(--line);border-radius:12px;padding:4px 10px;margin:0 0 8px;background:var(--surface)}
+  .rs-gh{display:flex;align-items:center;gap:8px;min-height:44px}
+  .rs-gh b{flex:1;min-width:0;font-size:14px;word-break:break-word}.rs-gh span{color:var(--muted);font-size:12px}
+  .rs-gall{min-height:44px;background:none;border:none;color:var(--accent2);font-weight:700;font-size:13px;cursor:pointer;padding:0 4px}
+  .rs-row{display:flex;align-items:center;gap:10px;min-height:44px;border-top:1px solid var(--line);font-size:13.5px;cursor:pointer;flex-wrap:wrap}
+  .rs-row input{width:22px;height:22px;flex:0 0 auto;margin:0}
+  .rs-dt{flex:1;min-width:0}.rs-at{color:var(--muted);font-size:11.5px}
+  .rs-past{display:inline-block;background:rgba(217,119,6,.14);color:var(--amber);border-radius:6px;padding:0 6px;font-size:11px;font-weight:700}
+  .rs-empty{color:var(--muted);font-size:13.5px;text-align:center;padding:22px 8px}
+  #menuSheet .sheet-close,#syncSheet .sheet-close,#rsSheet .sheet-close{width:44px;height:44px;top:10px;right:10px}
   #fbSubmit:disabled{opacity:.6}
 </style>
 </head>
@@ -895,57 +963,86 @@
 
 <!-- Menu sheet -->
 <div class="overlay" id="menuSheet">
-  <div class="sheet">
+  <div class="sheet set-sheet">
     <div class="grab"></div>
-    <h3>🖥 화면·보안</h3>
-    <div class="menu-item" id="mIntro"><span class="mi">💡</span>이렇게 쓰세요 (소개 다시 보기)</div>
-    <div class="menu-item" id="mClearDone"><span class="mi">🧹</span>완료된 할일 정리</div>
-    <div class="menu-item" id="mLock"><span class="mi">🔒</span><span id="mLockLabel">앱 잠금 (암호) 설정</span></div>
-    <div style="margin:12px 4px 4px;font-size:13px;font-weight:700">🏷 공적업무 자동 구분 키워드</div>
-    <div style="font-size:12px;color:var(--muted);line-height:1.55;margin:0 4px 8px">구분을 직접 저장하지 않은 일정·할일은 제목/장소에 아래 말이 있으면 공적업무로 보여요. 직접 고른 구분이 항상 우선이에요.</div>
-    <div id="kwList" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 4px 8px"></div>
-    <div class="sub-add" style="margin:0 4px 10px"><input id="kwInput" placeholder="키워드 추가 (예: 체력반)" autocomplete="off"><button type="button" id="kwAdd">＋</button></div>
-    <div class="menu-item" id="mLockMode"><span class="mi">🔑</span><span id="mLockModeLabel">잠금 방식: 비밀번호</span></div>
-    <h3 class="menu-h">🔔 알람</h3>
-    <div id="notifStatus" style="font-size:13px;color:var(--muted);background:var(--surface2);border-radius:11px;padding:11px;margin-bottom:10px"></div>
-    <div class="menu-item" id="mNotify"><span class="mi">🔔</span>일정 알림 켜기</div>
-    <p style="color:var(--muted);font-size:12px;margin:6px 2px 0;line-height:1.6">일정마다 알림 시점을 정할 수 있어요. <b>앱이 열려 있을 때</b> 알림이 와요. 아이폰은 <b>홈 화면에 추가</b>(공유→홈 화면에 추가) 후 그 앱에서 열어야 알림이 작동해요.</p>
-    <h3 class="menu-h">☁️ 동기화 (폰·PC 같이 쓰기)</h3>
-    <div class="fb-card" id="fbMenuStatus">상태 확인 중…</div>
-    <button class="save-btn" id="mFbOpen" style="margin-top:0">☁️ 동기화 열기 (로그인·상태)</button>
-    <h3 class="menu-h">💾 백업·저장공간</h3>
-    <div style="font-size:13px;font-weight:700;margin:4px 0 8px">구글 연결 (캘린더·드라이브 백업)</div>
-    <div class="fb-note" id="gFbNote" hidden style="margin:0 0 10px">☁️ 동기화를 쓰는 중이라 <b>구글 드라이브 자동 동기화는 꺼져 있어요</b>(두 길이 겹치지 않게). 아래 '지금 구글에 백업'은 직접 누를 때만 동작해요. 구글 캘린더는 ☁️ 동기화 화면의 '구글 캘린더에도 보내기'로 켜요.</div>
-    <div id="gStatus" style="font-size:13px;color:var(--muted);background:var(--surface2);border-radius:11px;padding:11px;margin-bottom:10px">상태 확인 중…</div>
-    <div id="gConnected" style="display:none">
-      <div class="menu-item" id="mSyncNow"><span class="mi">🔄</span>지금 동기화</div>
-      <div class="menu-item" id="mReauth"><span class="mi">🔐</span>백업 권한 추가(구글 재연결)</div>
-      <div class="menu-item" id="mDisconnect" style="color:var(--amber)"><span class="mi">🔌</span>구글 연결 해제</div>
-    </div>
-    <div id="gDisconnected">
-      <label class="fld">구글 OAuth 클라이언트 ID</label>
-      <input id="gClientId" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off">
-      <button class="save-btn" id="mConnect" style="margin-top:12px">구글 계정 연결</button>
-      <p style="color:var(--muted);font-size:12px;margin-top:10px;line-height:1.6">클라이언트 ID가 없으면 함께 드린 <b>설정 가이드</b>를 따라 5분이면 만들 수 있어요.</p>
-    </div>
-    <div class="menu-item" id="mShowCid"><span class="mi">🔑</span>내 클라이언트 ID 보기·복사</div>
-    <div style="font-size:13px;font-weight:700;margin:14px 0 8px">백업·복원</div>
-    <div class="menu-item" id="mBackupNow"><span class="mi">☁️</span>지금 구글에 백업</div>
-      <div style="font-size:11.5px;color:var(--muted);line-height:1.55;padding:0 4px 8px">백업 범위: 일정·다이어리(일/주/월)·할일·메모와 사진(사진 합계 9MB 이하일 때). 사진이 9MB를 넘으면 글만 백업돼요. <b>일정 첨부파일은 이 폰에만 저장돼요 — 백업에 포함되지 않음.</b></div>
-      <div id="storageLine" style="font-size:12px;color:var(--muted);padding:0 4px 8px"></div>
-    <div class="menu-item" id="mRestore"><span class="mi">♻️</span>구글에서 복원</div>
-    <div class="menu-item" id="mExport"><span class="mi">⬇️</span>데이터 백업(파일로 내보내기)</div>
-    <div class="menu-item" id="mImport"><span class="mi">⬆️</span>데이터 복원(파일 가져오기)</div>
-    <div class="menu-item" id="mReset" style="color:var(--red)"><span class="mi">🗑️</span>전체 초기화</div>
-    <h3 class="menu-h">❓ 도움말</h3>
-    <div class="menu-item" id="mFault"><span class="mi">🧪</span><span id="mFaultLbl">저장 실패 테스트(FAULT): 꺼짐</span></div>
-    <div class="menu-item" style="display:none" id="mImportWorkoutAug2026"><span class="mi">🏋️</span>8월 운동 플랜 가져오기</div>
+    <h3>⚙️ 설정</h3>
+
+    <section class="set-g" id="sgSync" aria-labelledby="sgSyncT">
+      <div class="set-h"><b id="sgSyncT">☁️ 동기화 (계정)</b><span>같은 이메일로 로그인한 폰·PC가 자동으로 맞춰져요</span></div>
+      <div class="fb-card" id="fbMenuStatus">상태 확인 중…</div>
+      <div class="set-btns" id="mFbInBtns" hidden>
+        <button class="set-btn pri" id="mFbSync" type="button">🔄 지금 맞추기</button>
+        <button class="set-btn" id="mFbLogout" type="button">로그아웃</button>
+      </div>
+      <button class="set-btn pri wide" id="mFbOpen" type="button">로그인 · 계정 만들기</button>
+      <button class="set-btn wide" id="mFbDiag" type="button">🩺 연결 진단</button>
+    </section>
+
+    <section class="set-g" id="sgGcal" aria-labelledby="sgGcalT">
+      <div class="set-h"><b id="sgGcalT">📅 구글 캘린더 (선택)</b><span>일정을 구글 캘린더에도 보내고 받아요 — 한 기기에서만 켜 주세요</span></div>
+      <label class="fb-sw"><input type="checkbox" id="fbGcal"><span>구글 캘린더에도 보내기</span></label>
+      <div class="set-stat" id="gStatus">상태 확인 중…</div>
+      <div id="gConnected" style="display:none">
+        <div class="set-btns">
+          <button class="set-btn" id="mSyncNow" type="button">🔄 구글과 맞추기</button>
+          <button class="set-btn warn" id="mDisconnect" type="button">연결 해제</button>
+        </div>
+      </div>
+      <div id="gDisconnected">
+        <button class="set-btn wide" id="mConnect" type="button">구글 계정 연결</button>
+      </div>
+    </section>
+
+    <section class="set-g" id="sgRule" aria-labelledby="sgRuleT">
+      <div class="set-h"><b id="sgRuleT">🏷 일정 규칙 — 공적업무 키워드</b><span>구분을 직접 고르지 않은 일정은 제목·장소에 이 말이 있으면 공적업무로 보여요</span></div>
+      <div id="kwList" class="kw-list"></div>
+      <div class="sub-add kw-add"><input id="kwInput" placeholder="키워드 추가 (예: 체력반)" autocomplete="off" aria-label="공적업무 키워드 추가"><button type="button" id="kwAdd" aria-label="키워드 추가">＋</button></div>
+    </section>
+
+    <section class="set-g" id="sgNotif" aria-labelledby="sgNotifT">
+      <div class="set-h"><b id="sgNotifT">🔔 알림</b><span>앱이 열려 있을 때 일정 알림이 와요 (아이폰은 홈 화면 앱에서)</span></div>
+      <div class="set-stat" id="notifStatus"></div>
+      <div class="menu-item" id="mNotify" role="button" tabindex="0"><span class="mi">🔔</span>일정 알림 켜기</div>
+    </section>
+
+    <section class="set-g" id="sgLock" aria-labelledby="sgLockT">
+      <div class="set-h"><b id="sgLockT">🔒 잠금·화면</b><span>다른 사람이 못 보게 잠그고, 사용법을 다시 볼 수 있어요</span></div>
+      <div class="menu-item" id="mLock" role="button" tabindex="0"><span class="mi">🔒</span><span id="mLockLabel">앱 잠금 (암호) 설정</span></div>
+      <div class="menu-item" id="mLockMode" role="button" tabindex="0"><span class="mi">🔑</span><span id="mLockModeLabel">잠금 방식: 비밀번호</span></div>
+      <div class="menu-item" id="mIntro" role="button" tabindex="0"><span class="mi">💡</span>이렇게 쓰세요 (소개 다시 보기)</div>
+    </section>
+
+    <section class="set-g" id="sgBackup" aria-labelledby="sgBackupT">
+      <div class="set-h"><b id="sgBackupT">💾 백업·복원</b><span>이 기기 기록을 파일로 저장하거나 파일에서 되살려요</span></div>
+      <div class="menu-item" id="mExport" role="button" tabindex="0"><span class="mi">⬇️</span>파일로 내보내기 (백업)</div>
+      <div class="menu-item" id="mImport" role="button" tabindex="0"><span class="mi">⬆️</span>파일에서 가져오기 (복원)</div>
+      <div class="menu-item" id="mTrash" role="button" tabindex="0"><span class="mi">🗑</span>최근 삭제한 일정 <span id="mTrashN" class="mi-n"></span></div>
+      <div class="menu-item" id="mRecover" role="button" tabindex="0"><span class="mi">🧩</span>예전 기록에서 일정 되살리기</div>
+      <div class="menu-item" id="mClearDone" role="button" tabindex="0"><span class="mi">🧹</span>완료된 할일 정리</div>
+      <div class="set-stat sm" id="storageLine"></div>
+    </section>
+
+    <details class="set-g set-adv" id="sgAdv">
+      <summary><b>🛠 고급</b><span>예전 구글 드라이브 백업 · 클라이언트 ID · 점검 · 초기화</span></summary>
+      <div class="adv-sub">구글 드라이브 백업 (예전 방식)</div>
+      <div class="set-stat sm" id="gFbNote" hidden>☁️ 동기화를 쓰는 중이라 드라이브 <b>자동</b> 동기화는 꺼져 있어요. 아래 버튼은 직접 누를 때만 동작해요.</div>
+      <div class="set-stat sm" id="gDriveStat"></div>
+      <div class="menu-item" id="mBackupNow" role="button" tabindex="0"><span class="mi">☁️</span>지금 구글에 백업</div>
+      <div class="menu-item" id="mRestore" role="button" tabindex="0"><span class="mi">♻️</span>구글에서 복원</div>
+      <div class="menu-item g-conn-only" id="mReauth" role="button" tabindex="0" style="display:none"><span class="mi">🔐</span>백업 권한 추가 (구글 재연결)</div>
+      <div class="set-stat sm">백업 범위: 일정·다이어리·할일·메모와 사진(합계 9MB 이하일 때). 일정 첨부파일은 이 기기에만 있어요.</div>
+      <div class="adv-sub">구글 OAuth 클라이언트 ID</div>
+      <input id="gClientId" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off" aria-label="구글 OAuth 클라이언트 ID">
+      <div class="menu-item" id="mShowCid" role="button" tabindex="0"><span class="mi">🔑</span>내 클라이언트 ID 보기·복사</div>
+      <div class="adv-sub">점검</div>
+      <div class="menu-item" id="mFault" role="button" tabindex="0"><span class="mi">🧪</span><span id="mFaultLbl">저장 실패 테스트(FAULT): 꺼짐</span></div>
+      <div class="menu-item" style="display:none" id="mImportWorkoutAug2026"><span class="mi">🏋️</span>8월 운동 플랜 가져오기</div>
+      <div class="set-stat sm" id="advInfo"></div>
+      <div class="adv-sub">위험</div>
+      <div class="menu-item" id="mReset" role="button" tabindex="0" style="color:var(--red)"><span class="mi">🗑️</span>전체 초기화</div>
+    </details>
     <input type="file" id="importFile" accept="application/json" style="display:none">
-    <p style="color:var(--muted);font-size:12px;margin-top:18px;line-height:1.6">
-      💡 기록은 이 기기에 저장되고, ☁️ 동기화에 로그인하면 폰·PC가 자동으로 맞춰져요.<br>
-      📱 모바일에서 <b>홈 화면에 추가</b>하면 앱처럼 쓸 수 있어요.
-    </p>
-    <p style="color:var(--muted);font-size:11px;margin-top:8px;text-align:center" id="appVer"></p>
+    <p class="set-ver" id="appVer"></p>
   </div>
 </div>
 
@@ -956,23 +1053,45 @@
     <h3>☁️ 동기화</h3>
     <div class="fb-card" id="fbStatusCard">상태 확인 중…</div>
     <div id="fbOut">
-      <p style="font-size:14px;line-height:1.65;margin:2px 2px 4px">아이폰과 노트북에서 <b>같은 이메일로 로그인</b>하면 일정·할일·메모·다이어리가 자동으로 맞춰져요. 한 번 로그인하면 계속 유지돼요.</p>
+      <p class="fb-lead">아이폰과 노트북에서 <b>같은 이메일로 로그인</b>하면 일정·할일·메모·다이어리가 자동으로 맞춰져요.</p>
       <label class="fld" for="fbEmail">이메일</label>
       <input class="fb-in" id="fbEmail" type="email" inputmode="email" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="example@gmail.com">
       <label class="fld" for="fbPw">비밀번호 (6자 이상)</label>
-      <input class="fb-in" id="fbPw" type="password" autocomplete="current-password" placeholder="비밀번호">
+      <div class="fb-pw"><input class="fb-in" id="fbPw" type="password" autocomplete="current-password" placeholder="비밀번호"><button type="button" class="fb-eye" id="fbPwEye" aria-label="비밀번호 보기" aria-pressed="false">보기</button></div>
       <div id="fbPw2Wrap" hidden><label class="fld" for="fbPw2">비밀번호 확인</label><input class="fb-in" id="fbPw2" type="password" autocomplete="new-password" placeholder="한 번 더 입력"></div>
       <div class="fb-msg" id="fbMsg" role="status" aria-live="polite"></div>
+      <div class="fb-code" id="fbCode" hidden></div>
       <button class="save-btn" id="fbSubmit" style="margin-top:8px">로그인</button>
+      <button class="fb-link" id="fbForgot" type="button">비밀번호를 잊었어요</button>
       <button class="fb-sec-btn" id="fbMode" type="button">처음이면 계정 만들기</button>
-      <p style="font-size:12.5px;color:var(--muted);line-height:1.65;margin:12px 2px 0">이 앱 전용 계정이에요(구글 비밀번호와 별개). 두 번째 기기에서는 같은 이메일·비밀번호로 <b>로그인</b>만 하면 돼요 — 기기 기록과 클라우드 기록을 <b>합쳐요</b>(지우지 않아요). 합치기 전에 백업 파일도 자동으로 저장해요.</p>
+      <p class="fb-foot">이 앱 전용 계정이에요(구글 비밀번호와 별개). 두 번째 기기에서는 같은 이메일로 <b>로그인</b>만 하면 기기 기록과 클라우드 기록을 <b>합쳐요</b>(지우지 않아요).</p>
     </div>
     <div id="fbIn" hidden>
-      <button class="save-btn" id="fbSyncNow" style="margin-top:4px">🔄 지금 동기화</button>
-      <label class="fb-sw"><input type="checkbox" id="fbGcal"><span>구글 캘린더에도 보내기<br><span style="font-size:12.5px;color:var(--muted)">켜면 이 기기에서 구글 캘린더로도 일정을 보내고 받아요(설정의 구글 연결 필요). 한 기기에서만 켜는 걸 권해요.</span></span></label>
+      <div class="set-btns">
+        <button class="set-btn pri" id="fbSyncNow" type="button">🔄 지금 맞추기</button>
+        <button class="set-btn" id="fbLogout" type="button">로그아웃</button>
+      </div>
       <div class="fb-note">📷 사진·첨부파일은 이 기기에만 있어요 (다음 단계에서 연동)</div>
-      <button class="fb-sec-btn" id="fbLogout" type="button" style="color:var(--amber)">로그아웃</button>
     </div>
+    <div class="dg-box">
+      <button class="set-btn dg-btn" id="fbDiagBtn" type="button">🩺 연결 진단</button>
+      <div class="dg-help">연결이 안 될 때 눌러서 결과를 복사해 보내 주세요. 비밀번호·토큰은 들어가지 않아요.</div>
+      <div class="dg-out" id="fbDiagOut" hidden></div>
+      <button class="set-btn" id="fbDiagCopy" type="button" hidden>📋 결과 복사</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🗑 최근 삭제 / 🧩 예전 기록 되살리기 (2026-11-17c) -->
+<div class="overlay" id="rsSheet">
+  <div class="sheet">
+    <div class="grab"></div>
+    <h3 id="rsT">최근 삭제한 일정</h3>
+    <p class="rs-d" id="rsD"></p>
+    <div id="rsSrc" class="rs-srcs"></div>
+    <div id="rsList" class="rs-list"></div>
+    <button class="save-btn" id="rsGo" type="button" disabled>되살릴 일정을 골라 주세요</button>
+    <input type="file" id="rsFile" accept="application/json,.json" style="display:none">
   </div>
 </div>
 
@@ -3702,8 +3821,8 @@ async function addFiles(list){
 function evIcons(t){return (t.desc?"📄":"")+(t.result?"📝":"")+(t.files&&t.files.length?"📎":"")+(t.remind&&t.remind!=="none"?"⏰":"")+((t.seriesId||(t.rep&&t.rep!=="none"))?"🔁":"");}
 function renderKw(){
   const el=document.getElementById("kwList");if(!el)return;
-  el.innerHTML=(state.scopeKw||[]).map((k,i)=>`<span class="chip">${esc(k)} <b data-ki="${i}" style="cursor:pointer;padding:0 2px">✕</b></span>`).join("")||`<span style="color:var(--muted);font-size:12px">키워드가 없어요</span>`;
-  el.querySelectorAll("b[data-ki]").forEach(b=>b.onclick=()=>{state.scopeKw.splice(+b.dataset.ki,1);kwSaved();});
+  el.innerHTML=(state.scopeKw||[]).map((k,i)=>`<span class="kw-chip">${esc(k)}<button type="button" class="kw-x" data-ki="${i}" aria-label="${esc(k)} 삭제">✕</button></span>`).join("")||`<span style="color:var(--muted);font-size:12px">키워드가 없어요</span>`;
+  el.querySelectorAll("[data-ki]").forEach(b=>b.onclick=()=>{state.scopeKw.splice(+b.dataset.ki,1);kwSaved();});
 }
 function kwSaved(){try{save();}catch(e){return;}renderKw();renderAll();}
 function addKw(){const i=document.getElementById("kwInput"),v=i.value.trim();if(!v)return;if(state.scopeKw.indexOf(v)<0)state.scopeKw.push(v);i.value="";kwSaved();}
@@ -3856,7 +3975,7 @@ function restoreSnaps(snaps){
 }
 let _pk=null;
 function pickSeries(o){ // o:{t,title,items,locked,preview(n,sel),onApply(sel)}
-  _pk={o,sel:new Set(o.locked?[o.locked]:[o.t.id])};
+  const t0=todayStr();_pk={o,sel:new Set(o.locked?[o.locked]:(o.protectPast&&o.t.date<t0?[]:[o.t.id]))};
   document.getElementById("spT").textContent=o.title;
   const first=o.items[0].date,last=o.items[o.items.length-1].date;
   document.getElementById("spFrom").value=first;document.getElementById("spTo").value=last;
@@ -3865,7 +3984,7 @@ function pickSeries(o){ // o:{t,title,items,locked,preview(n,sel),onApply(sel)}
 function drawPick(){
   const {o,sel}=_pk,t0=todayStr();
   document.getElementById("spList").innerHTML=o.items.map(x=>{const d=_pd(x.date);const w=["일","월","화","수","목","금","토"][d.getDay()];
-    return `<label class="sp-row ${x.date<t0?'past':''}"><input type="checkbox" data-id="${x.id}" ${sel.has(x.id)?"checked":""} ${o.locked===x.id?"disabled":""}><span style="flex:1">${d.getMonth()+1}/${d.getDate()} (${w}) ${x.time||"종일"}</span>${o.locked===x.id?'<small style="color:var(--accent2)">수정 중</small>':(x.id===o.t.id?'<small style="color:var(--muted)">현재</small>':"")}</label>`;}).join("");
+    return `<label class="sp-row ${x.date<t0?'past':''}"><input type="checkbox" data-id="${x.id}" ${sel.has(x.id)?"checked":""} ${o.locked===x.id?"disabled":""}><span style="flex:1">${d.getMonth()+1}/${d.getDate()} (${w}) ${x.time||"종일"}${o.protectPast&&x.date<t0?' <small class="rs-past">지난 일정</small>':""}</span>${o.locked===x.id?'<small style="color:var(--accent2)">수정 중</small>':(x.id===o.t.id?'<small style="color:var(--muted)">현재</small>':"")}</label>`;}).join("");
   document.querySelectorAll("#spList input").forEach(c=>c.onchange=()=>{if(c.checked)sel.add(c.dataset.id);else sel.delete(c.dataset.id);updPick();});
   updPick();
 }
@@ -3878,12 +3997,14 @@ function afterTaskSave(fdate,remind,tid,msg){
   if(remind&&remind!=="none"){ensureNotifyPermission();const sv=state.tasks.find(x=>x.id===tid);if(sv)setTimeout(()=>offerIcs(Object.assign({},sv)),1500);}
   setTimeout(checkReminders,400);
 }
+/* 반복 일정 삭제 (2026-11-17c 지난 일정 보호): '오늘 이후 모두'·'날짜 골라서'의 일괄 선택은 오늘 이전 날짜를 절대 포함하지 않음.
+   지운 일정은 '최근 삭제'(30일, 이 기기 전용)에 남아 설정 → 백업·복원에서 되살릴 수 있음 */
 function deleteTaskFlow(t){
   const all=t.seriesId?state.tasks.filter(x=>x.seriesId===t.seriesId&&x.id!==t.id).sort((a,b)=>a.date.localeCompare(b.date)):[];
-  const later=all.filter(x=>x.date>t.date);
   const legacy=!t.seriesId&&!t.lunar&&["daily","weekly","monthly"].indexOf(t.rep||"none")>=0;
   const run=list=>{
     const snaps=list.map(x=>[x.id,JSON.stringify(x)]);
+    trashTasks(list,"삭제");
     list.forEach(x=>{if(x.gid){state.gdel=state.gdel||[];state.gdel.push(x.gid);}});
     const ids=new Set(list.map(x=>x.id));state.tasks=state.tasks.filter(x=>!ids.has(x.id));
     try{save();}catch(e){return;}
@@ -3891,10 +4012,120 @@ function deleteTaskFlow(t){
     toastUndo(list.length>1?`${list.length}개 일정을 삭제했어요`:"삭제했어요",()=>restoreSnaps(snaps));
   };
   const full=[t].concat(all).sort((a,b)=>a.date.localeCompare(b.date));
-  if(all.length)askSeries("반복 일정 삭제","어디까지 지울까요?",()=>run([t]),()=>run([t].concat(later)),true,["이 일정만",`이후 일정 모두 (${later.length+1}개)`],{hideAll:false,wholeLabel:`전체 일괄 (${all.length+1}개)`,onWhole:()=>run(full),onPick:()=>setTimeout(()=>pickSeries({t,title:"삭제할 일정 고르기",items:full,locked:null,preview:sel=>`${sel.length}개 일정을 삭제해요`,onApply:sel=>run(sel)}),150)});
+  const t0=todayStr(),upcoming=full.filter(x=>x.date>=t0),past=full.length-upcoming.length;
+  if(all.length)askSeries("반복 일정 삭제","어디까지 지울까요?"+(past?`\n지난 일정 ${past}개는 기록이라 그대로 둬요.`:""),()=>run([t]),()=>run(upcoming),true,["이 일정만",`오늘 이후 모두 (${upcoming.length}개)`],
+    {hideAll:!upcoming.length,onPick:()=>setTimeout(()=>pickSeries({t,title:"삭제할 일정 고르기",items:full,locked:null,protectPast:true,preview:sel=>`${sel.length}개 일정을 삭제해요`+(sel.some(x=>x.date<t0)?" ⚠️ 지난 일정 포함":""),onApply:sel=>{if(sel.length)run(sel);}}),150)});
   else if(legacy)askSeries("예전 방식 반복 일정","이 일정은 예전 방식 반복이라 날짜별로 고를 수 없어요. 한 달치 일정으로 바꾼 뒤 고르시겠어요?",()=>run([t]),()=>materializeLegacy(t),true,["반복 전체 삭제","한 달치 일정으로 바꾸기"]);
   else if(confirm("이 일정을 삭제할까요?"))run([t]);
 }
+/* ===================== 🗑 최근 삭제 + 예전 기록에서 되살리기 (2026-11-17c) =====================
+   - 최근 삭제: 이 기기 localStorage(myPlanner.trash)에만 30일 보관, 동기화 안 함. 내용만(첨부·사진 제외).
+     다른 기기에서 지워져 이 기기에 반영된 일정도 여기에 남김(어느 기기에서든 되살릴 수 있게).
+   - 되살리기 = 같은 id로 다시 만들고 updatedAt=지금 → Firebase 쪽 삭제표시(u)보다 새것이라 모든 기기에 다시 퍼짐(병합 규칙 그대로) */
+var TRASH_KEY="myPlanner.trash",TRASH_DAYS=30,TRASH_MAX=500;
+function _trashLoad(){try{const a=JSON.parse(localStorage.getItem(TRASH_KEY)||"[]");return Array.isArray(a)?a:[];}catch(e){return [];}}
+function _trashSave(a){
+  const lim=Date.now()-TRASH_DAYS*864e5;a=a.filter(x=>x&&x.t&&x.at>=lim).sort((p,q)=>q.at-p.at).slice(0,TRASH_MAX);
+  for(let n=a.length;;n=Math.floor(n*0.7)){try{if(n)localStorage.setItem(TRASH_KEY,JSON.stringify(a.slice(0,n)));else localStorage.removeItem(TRASH_KEY);return;}catch(e){if(!n)return;}}
+}
+function _taskLite(t){const o=JSON.parse(JSON.stringify(t||{}));delete o.files;delete o.photos;return o;}
+function trashTasks(list,src){try{if(!list||!list.length)return;const a=_trashLoad(),now=Date.now();list.forEach(t=>{if(t&&t.id!=null)a.push({at:now,src:src||"",t:_taskLite(t)});});_trashSave(a);}catch(e){}}
+function trashList(){ // id별 최신 1건, 지금 있는 일정·30일 지난 것 제외
+  const ids=new Set((state.tasks||[]).map(x=>String(x.id))),lim=Date.now()-TRASH_DAYS*864e5,seen=new Set(),out=[];
+  _trashLoad().sort((p,q)=>q.at-p.at).forEach(x=>{const id=String(x.t.id);if(x.at<lim||ids.has(id)||seen.has(id))return;seen.add(id);out.push(x);});
+  return out;
+}
+function restoreTasks(list){
+  const ids=new Set(state.tasks.map(x=>String(x.id))),now=Date.now();let n=0;
+  list.forEach(t0=>{
+    if(!t0||t0.id==null||!t0.date||ids.has(String(t0.id)))return;
+    const o=_taskLite(t0);
+    if(o.gid){const gd=state.gdel||[],i=gd.indexOf(o.gid);if(i>=0)gd.splice(i,1);else delete o.gid;} // 구글 쪽이 이미 지웠으면 새 일정으로
+    if(o.gsync!=="local")o.gsync="pending";o.updatedAt=now;
+    state.tasks.push(o);ids.add(String(o.id));n++;
+  });
+  if(!n)return 0;
+  try{save();}catch(e){return -1;}
+  renderAll();scheduleSync();
+  return n;
+}
+/* 되살리기 화면 (최근 삭제 / 예전 기록 공용) */
+var _rs={mode:"trash",items:[],sel:new Set(),src:"",sources:[]};
+function _rsKey(t){return String(t.id);}
+function openTrash(){
+  _rs={mode:"trash",items:trashList().map(x=>Object.assign({},x.t,{_at:x.at,_src:x.src})),sel:new Set(),src:"",sources:[]};
+  document.getElementById("rsT").textContent="🗑 최근 삭제한 일정";
+  document.getElementById("rsD").textContent="지운 일정은 이 기기에 30일 동안 남아요. 골라서 되살리면 다른 기기에도 다시 나타나요. (첨부파일·사진은 되살리지 않아요)";
+  document.getElementById("rsSrc").innerHTML="";drawRs();openOverlay("rsSheet");
+}
+async function _presyncSnaps(){
+  return new Promise(res=>{try{
+    const r=indexedDB.open("myPlannerPresync",1);
+    r.onupgradeneeded=e=>{try{e.target.result.createObjectStore("snap");}catch(x){}};
+    r.onsuccess=e=>{const db=e.target.result,out=[];
+      try{const cr=db.transaction("snap","readonly").objectStore("snap").openCursor();
+        cr.onsuccess=ev=>{const c=ev.target.result;if(c){out.push({key:String(c.key),json:c.value});c.continue();}else{db.close();res(out);}};
+        cr.onerror=()=>{db.close();res(out);};}catch(x){try{db.close();}catch(y){}res(out);}};
+    r.onerror=()=>res([]);r.onblocked=()=>res([]);
+  }catch(e){res([]);}});
+}
+function _missingFrom(st){ // 사본에는 있는데 지금은 없는 일정(같은 id도, 같은 제목·날짜·시간도 없음)
+  const cur=state.tasks||[],ids=new Set(cur.map(x=>String(x.id))),sig=new Set(cur.map(x=>(x.title||"")+"|"+x.date+"|"+(x.time||"")));
+  return ((st&&st.tasks)||[]).filter(t=>t&&t.id!=null&&t.date&&!ids.has(String(t.id))&&!sig.has((t.title||"")+"|"+t.date+"|"+(t.time||"")));
+}
+async function openRecover(){
+  _rs={mode:"recover",items:[],sel:new Set(),src:"",sources:[]};
+  document.getElementById("rsT").textContent="🧩 예전 기록에서 일정 되살리기";
+  document.getElementById("rsD").textContent="기기 안에 남은 예전 사본(처음 동기화 직전 사본 등)이나 백업 파일과 지금을 비교해, 지금 없는 일정만 보여 줘요. 되살릴 것만 고르세요.";
+  document.getElementById("rsSrc").innerHTML="";
+  document.getElementById("rsList").innerHTML=`<div class="rs-empty">기기 안 사본을 찾는 중…</div>`;openOverlay("rsSheet");
+  const srcs=[];
+  (await _presyncSnaps()).forEach(x=>{try{const st=JSON.parse(x.json);const ts=+(x.key.split("_")[1]||0);srcs.push({label:"처음 동기화 직전 사본 "+(ts?_fbWhen(ts):""),at:ts,st});}catch(e){}});
+  try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf(KEY+".corrupt.")===0){try{const st=JSON.parse(localStorage.getItem(k)),ts=+k.split(".").pop();srcs.push({label:"손상 보관본 "+_fbWhen(ts),at:ts,st});}catch(e){}}}}catch(e){}
+  try{if(_lastGood&&_lastGood!==JSON.stringify(state))srcs.push({label:"마지막 기기 저장본",at:Date.now(),st:JSON.parse(_lastGood)});}catch(e){}
+  srcs.sort((a,b)=>b.at-a.at);_rs.sources=srcs;
+  _rsSrcPaint();
+  if(srcs.length){let best=0;srcs.forEach((x,i)=>{if(_missingFrom(x.st).length>_missingFrom(srcs[best].st).length)best=i;});_rsUse(best);}
+  else{_rs.items=[];drawRs("기기 안에 예전 사본이 없어요 — 위 '백업 파일에서 비교'로 파일을 골라 주세요.");}
+}
+function _rsSrcPaint(){
+  const box=document.getElementById("rsSrc");
+  box.innerHTML=(_rs.sources||[]).map((x,i)=>{const n=_missingFrom(x.st).length;return `<button type="button" class="rs-src ${_rs.src===String(i)?"on":""}" data-si="${i}">${esc(x.label)} · 지금 없는 일정 ${n}개</button>`;}).join("")+
+    `<button type="button" class="rs-src ${_rs.src==="file"?"on":""}" id="rsFileBtn">📂 백업 파일(.json)에서 비교</button>`;
+  box.querySelectorAll("[data-si]").forEach(b=>b.onclick=()=>_rsUse(+b.dataset.si));
+  document.getElementById("rsFileBtn").onclick=()=>document.getElementById("rsFile").click();
+}
+function _rsUse(i){const x=_rs.sources[i];_rs.src=String(i);_rs.items=_missingFrom(x.st);_rs.sel=new Set();_rsSrcPaint();drawRs("이 사본과 비교해 지금 없는 일정이 없어요.");}
+function _rsFromFile(file){
+  const r=new FileReader();
+  r.onload=e=>{try{const p=JSON.parse(e.target.result),st=p.state||p;if(!st||!Array.isArray(st.tasks))throw new Error("일정 목록(tasks)이 없는 파일");
+      _rs.src="file";_rs.items=_missingFrom(st);_rs.sel=new Set();_rsSrcPaint();drawRs("이 파일과 비교해 지금 없는 일정이 없어요.");toast("파일 일정 "+st.tasks.length+"개와 비교했어요");}
+    catch(err){toast("백업 파일을 읽지 못했어요 — 마이플래너에서 내보낸 .json 인지 확인해 주세요");}};
+  r.readAsText(file);
+}
+function drawRs(emptyMsg){
+  const el=document.getElementById("rsList"),t0=todayStr(),W=["일","월","화","수","목","금","토"];
+  const items=_rs.items.slice().sort((a,b)=>(a.title||"").localeCompare(b.title||"")||a.date.localeCompare(b.date)||(a.time||"").localeCompare(b.time||""));
+  _rs.emptyMsg=emptyMsg;
+  if(!items.length){el.innerHTML=`<div class="rs-empty">${esc(emptyMsg||"최근 30일 안에 지운 일정이 없어요.")}</div>`;_rsUpd();return;}
+  const groups={};items.forEach(x=>{const g=x.title||"(제목 없음)";(groups[g]=groups[g]||[]).push(x);});
+  const keys=Object.keys(groups);
+  el.innerHTML=keys.map((g,gi)=>`<div class="rs-g"><div class="rs-gh"><b>${esc(g)}</b><span>${groups[g].length}개</span><button type="button" class="rs-gall" data-gi="${gi}">모두 고르기</button></div>`+
+    groups[g].map(x=>{const d=_pd(x.date);return `<label class="rs-row"><input type="checkbox" data-k="${esc(_rsKey(x))}" ${_rs.sel.has(_rsKey(x))?"checked":""}><span class="rs-dt">${d.getMonth()+1}/${d.getDate()} (${W[d.getDay()]}) ${esc(x.time||"종일")}${x.date<t0?' <small class="rs-past">지난 일정</small>':""}</span>${x._at?`<small class="rs-at">${esc(_fbWhen(x._at))} 삭제${x._src==="다른 기기"?" · 다른 기기":""}</small>`:""}</label>`;}).join("")+`</div>`).join("");
+  el.querySelectorAll("input[data-k]").forEach(c=>c.onchange=()=>{if(c.checked)_rs.sel.add(c.dataset.k);else _rs.sel.delete(c.dataset.k);_rsUpd();});
+  el.querySelectorAll("[data-gi]").forEach(b=>b.onclick=()=>{const arr=groups[keys[+b.dataset.gi]],allOn=arr.every(x=>_rs.sel.has(_rsKey(x)));arr.forEach(x=>{if(allOn)_rs.sel.delete(_rsKey(x));else _rs.sel.add(_rsKey(x));});drawRs(_rs.emptyMsg);});
+  _rsUpd();
+}
+function _rsUpd(){const n=_rs.sel.size,b=document.getElementById("rsGo");b.disabled=!n;b.textContent=n?`선택한 ${n}개 되살리기`:"되살릴 일정을 골라 주세요";}
+function rsApply(){
+  const pick=_rs.items.filter(x=>_rs.sel.has(_rsKey(x))).map(x=>{const o=Object.assign({},x);delete o._at;delete o._src;return o;});
+  const n=restoreTasks(pick);if(n<0)return;
+  if(!n){toast("되살릴 일정이 없어요(이미 있는 일정)");return;}
+  if(_rs.mode==="trash"){try{const ids=new Set(pick.map(x=>String(x.id)));_trashSave(_trashLoad().filter(x=>!ids.has(String(x.t.id))));}catch(e){}}
+  toast(`✅ ${n}개 일정을 되살렸어요`+(fbActive()?" — 다른 기기에도 곧 나타나요":""));
+  closeOverlay("rsSheet");renderTrashCount();
+}
+function renderTrashCount(){const el=document.getElementById("mTrashN");if(el){const n=trashList().length;el.textContent=n?`(${n})`:"";}}
 /* ---------- 쉬운 일정 옮기기: 되돌리기 토스트 / 빠른 이동 / 드래그 ---------- */
 function isMovable(t){return !t.lunar&&(!t.rep||t.rep==="none");}
 function moveTask(t,nd,nt){
@@ -4213,7 +4444,7 @@ function saveTask(){
     const t=state.tasks.find(x=>x.id===editId);
     if(t.remind!==remind&&state.notified){Object.keys(state.notified).forEach(k=>{if(k.indexOf(t.id+"|")===0)delete state.notified[k];});}
     const all=t.seriesId?state.tasks.filter(x=>x.seriesId===t.seriesId&&x.id!==t.id).sort((a,b)=>a.date.localeCompare(b.date)):[];
-    const later=all.filter(x=>x.date>t.date);
+    const tdy=todayStr(),later=all.filter(x=>x.date>t.date&&x.date>=tdy),upAll=all.filter(x=>x.date>=tdy); // 2026-11-17c: 지난 일정은 일괄 수정 제외
     const legacy=!t.seriesId&&!t.lunar&&["daily","weekly","monthly"].indexOf(t.rep||"none")>=0&&(t.rep||"none")===frep;
     const off=dayDiff(t.date,fdate),descNew=document.getElementById("fDesc").value.trim()||undefined;
     const keys=["title","time","endTime","loc","remind","cat","scope"].filter(k=>(vals[k]||"")!==(t[k]||""));
@@ -4236,8 +4467,9 @@ function saveTask(){
     };
     if(t.seriesId&&chg&&all.length){
       const full=[t].concat(all).sort((a,b)=>a.date.localeCompare(b.date));
-      askSeries("반복 일정 수정",`변경: ${summary||"없음"}`+"\n어디까지 적용할까요?",()=>apply([]),()=>apply(later),false,["이 일정만",`이후 일정 모두 (${later.length+1}개)`],{hideAll:!later.length,wholeLabel:`전체 일괄 (${all.length+1}개)`,onWhole:()=>apply(all),
-        onPick:()=>setTimeout(()=>pickSeries({t,title:"적용할 일정 고르기",items:full,locked:t.id,preview:sel=>`${sel.length}개 일정을 바꿔요 — ${summary}`,onApply:sel=>apply(sel)}),150)});
+      const pastN=all.length-upAll.length;
+      askSeries("반복 일정 수정",`변경: ${summary||"없음"}`+"\n어디까지 적용할까요?"+(pastN?`\n지난 일정 ${pastN}개는 기록이라 바꾸지 않아요.`:""),()=>apply([]),()=>apply(later),false,["이 일정만",`이 날 이후 모두 (${later.length+1}개)`],{hideAll:!later.length,wholeLabel:`오늘 이후 모두 (${upAll.length+1}개)`,onWhole:upAll.length>later.length?()=>apply(upAll):null,
+        onPick:()=>setTimeout(()=>pickSeries({t,title:"적용할 일정 고르기",items:full,locked:t.id,protectPast:true,preview:sel=>`${sel.length}개 일정을 바꿔요 — ${summary}`+(sel.some(x=>x.date<tdy&&x.id!==t.id)?" ⚠️ 지난 일정 포함":""),onApply:sel=>apply(sel)}),150)});
       return;
     }
     if(legacy&&chg){
@@ -4478,7 +4710,7 @@ async function pullChanges(){
   }while(pageToken);
 }
 async function syncNow(silent){
-  if(fbActive()&&!gcalOn()){if(!silent)toast("'구글 캘린더에도 보내기'가 꺼져 있어요 — ☁️ 동기화 화면에서 켤 수 있어요");return;}
+  if(fbActive()&&!gcalOn()){if(!silent)toast("'구글 캘린더에도 보내기'가 꺼져 있어요 — 설정(⚙️) → 구글 캘린더에서 켤 수 있어요");return;}
   if(!gIsConnected()){if(!silent)toast("먼저 구글 계정을 연결하세요");return;}
   if(G.syncing)return;
   if(!navigator.onLine){updateSyncUI("offline");if(!silent)toast("오프라인 — 연결되면 자동 동기화돼요");return;}
@@ -4649,17 +4881,18 @@ function renderGoogleUI(){
   const conn=gIsConnected();
   document.getElementById("gConnected").style.display=conn?"block":"none";
   document.getElementById("gDisconnected").style.display=conn?"none":"block";
-  const st=document.getElementById("gStatus");
+  document.querySelectorAll(".g-conn-only").forEach(el=>{el.style.display=conn?"":"none";});
+  const st=document.getElementById("gStatus"),ds=document.getElementById("gDriveStat");
   if(conn){
     const last=state.gLast?new Date(state.gLast):null;
     const bAt=+(localStorage.getItem("g.backupAt")||0);
-    const bTxt=bAt?`☁️ 자동 백업됨 · ${pad2(new Date(bAt).getHours())}:${pad2(new Date(bAt).getMinutes())}`:"☁️ 자동 백업 대기 중";
     const hasDrive=((G.token&&G.token.scope)||"").indexOf("drive.appdata")>=0;
-    const perm=hasDrive?"드라이브(백업) 권한 ✅":"드라이브(백업) 권한 ❌ — 아래 '백업 권한 추가'를 눌러주세요";
-    st.innerHTML=`✅ <b>연결됨</b>${last?" · 동기화 "+pad2(last.getHours())+":"+pad2(last.getMinutes()):""}<br><span style="font-size:11px">${perm}<br>${hasDrive?bTxt:""}</span>`;
+    st.innerHTML=`<span class="fb-dot" style="background:#22c55e"></span><b>구글 연결됨</b>${last?" · 마지막 맞춤 "+pad2(last.getHours())+":"+pad2(last.getMinutes()):""}`;
+    if(ds)ds.innerHTML=hasDrive?(bAt?`드라이브 백업 권한 ✅ · 마지막 백업 ${pad2(new Date(bAt).getHours())}:${pad2(new Date(bAt).getMinutes())}`:"드라이브 백업 권한 ✅ · 아직 백업 없음"):"드라이브 백업 권한 없음 — 아래 '백업 권한 추가'";
   }else{
     document.getElementById("gClientId").value=G.clientId||"";
-    st.innerHTML=`⚪ <b>연결 안 됨</b><br><span style="font-size:11px">연결하면 폰·PC·구글 캘린더 앱에서 같은 일정을 볼 수 있어요.</span>`;
+    st.innerHTML=`<span class="fb-dot" style="background:#9ca3af"></span><b>구글 연결 안 됨</b> — 캘린더로 보내려면 연결하세요`;
+    if(ds)ds.textContent="구글 연결 안 됨 (위 '구글 캘린더'에서 연결)";
   }
 }
 function updateSyncUI(stateName){
@@ -4692,7 +4925,8 @@ var FB_METAKEY="myPlanner.fbMeta";
 var FB_MAXV=850000; // 문서 1MB 한도 여유 — 이보다 큰 항목은 건너뛰고 화면에 알림
 var FB_KINDS=new Set(["task","todo","memo","diary","diaryW","diaryM","plan","done","ledger","account","asset","set"]);
 var FB={M:null,app:null,auth:null,db:null,user:null,unsub:null,meta:null,loading:null,diffT:null,pending:0,fromCache:true,err:null,authReady:false,authBusy:false,firstBusy:false,mode:"login",skipped:0,skipIds:new Set(),
-  gen:0,resets:0,rstAt:[],infl:new Set(),pchk:false}; // 2026-11-17b: gen=Firestore 인스턴스 세대, infl=이번 세대에서 서버 답 기다리는 항목
+  gen:0,resets:0,rstAt:[],infl:new Set(),pchk:false, // 2026-11-17b: gen=Firestore 인스턴스 세대, infl=이번 세대에서 서버 답 기다리는 항목
+  lp:false,lastErr:null,lsSrv:false,lsT:null,diagBusy:false,diagText:""}; // 2026-11-17c: lp=롱폴링 사용 중, lsSrv=이번 연결에서 서버 스냅샷 받음
 function _fbLoadMeta(){try{const m=JSON.parse(localStorage.getItem(FB_METAKEY)||"null");if(m&&m.uid&&m.m)return m;}catch(e){}return null;}
 FB.meta=_fbLoadMeta();
 function _fbSaveMeta(){try{if(FB.meta)localStorage.setItem(FB_METAKEY,JSON.stringify(FB.meta));else localStorage.removeItem(FB_METAKEY);}catch(e){}}
@@ -4739,13 +4973,15 @@ function fbApplyEnt(st,k,key,v,del){
 }
 function _fbErrText(e){
   const c=(e&&e.code)||"";
-  const map={"auth/invalid-credential":"이메일 또는 비밀번호가 맞지 않아요","auth/invalid-login-credentials":"이메일 또는 비밀번호가 맞지 않아요","auth/wrong-password":"이메일 또는 비밀번호가 맞지 않아요",
-    "auth/user-not-found":"이 이메일로 만든 계정이 없어요 — '처음이면 계정 만들기'를 눌러 주세요","auth/email-already-in-use":"이미 만든 계정이에요 — '로그인'으로 들어가 주세요",
-    "auth/weak-password":"비밀번호가 너무 쉬워요 (6자 이상)","auth/invalid-email":"이메일 주소 형식이 아니에요","auth/missing-password":"비밀번호를 입력해 주세요",
-    "auth/network-request-failed":"인터넷 연결이 끊겼거나 서버에 닿지 못했어요","auth/too-many-requests":"시도가 너무 많아 잠시 막혔어요 — 몇 분 뒤 다시 해 주세요",
+  const fg=" — 비밀번호가 기억나지 않으면 아래 '비밀번호를 잊었어요'를 눌러 주세요";
+  const map={"auth/invalid-credential":"이메일 또는 비밀번호가 맞지 않아요"+fg,"auth/invalid-login-credentials":"이메일 또는 비밀번호가 맞지 않아요"+fg,"auth/wrong-password":"비밀번호가 맞지 않아요"+fg,
+    "auth/user-not-found":"이 이메일로 만든 계정이 없어요 — 주소를 다시 확인하거나, 처음이면 '계정 만들기'를 눌러 주세요","auth/email-already-in-use":"이미 만든 계정이에요 — '로그인'으로 들어가 주세요",
+    "auth/weak-password":"비밀번호가 너무 쉬워요 (6자 이상)","auth/invalid-email":"이메일 주소 형식이 아니에요","auth/missing-password":"비밀번호를 입력해 주세요","auth/missing-email":"이메일을 입력해 주세요",
+    "auth/network-request-failed":"인터넷이 끊겼거나 로그인 서버에 닿지 못했어요 — 와이파이/데이터, VPN·차단 앱을 확인해 주세요","auth/too-many-requests":"시도가 너무 많아 잠시 막혔어요 — 몇 분 뒤 다시 해 주세요",
     "auth/operation-not-allowed":"서버에서 이메일 로그인이 아직 켜지지 않았어요(관리자 설정 필요)","auth/user-disabled":"사용이 중지된 계정이에요",
     "permission-denied":"서버가 권한 없음으로 거절했어요 (로그아웃 후 다시 로그인해 보세요)","unauthenticated":"로그인이 풀렸어요 — 다시 로그인해 주세요",
-    "unavailable":"서버에 닿지 못했어요 (오프라인)","resource-exhausted":"오늘 사용량 한도를 넘었어요 — 내일 자동으로 풀려요","deadline-exceeded":"서버 응답이 너무 늦어요"};
+    "unavailable":"서버에 닿지 못했어요 (오프라인 또는 연결이 막힘) — '연결 진단'으로 확인할 수 있어요","resource-exhausted":"오늘 사용량 한도를 넘었어요 — 내일 자동으로 풀려요","deadline-exceeded":"서버 응답이 너무 늦어요",
+    "timeout":"서버 응답이 너무 늦어요(12초 넘게) — 연결 상태를 확인해 주세요"};
   if(_fbIsDead(e))return "동기화 연결이 멈췄어요(앱을 내렸다 올린 뒤 생길 수 있음) — '다시 시도'를 누르면 새로 연결해요";
   return map[c]||(typeof failReason==="function"?failReason(e):String((e&&e.message)||e));
 }
@@ -4776,10 +5012,28 @@ function fbLoad(){
    "The client has already been terminated." 로 즉시 실패함. 기록의 원본은 어차피 이 기기(localStorage)라
    Firestore 오프라인 캐시는 필요 없음. 서버 답 전에 앱이 닫힌 쓰기는 meta.p(대기표)로 다음 실행 때 다시 올림. */
 function _fbMakeDb(){
-  const M=FB.M,db=M.initializeFirestore(FB.app,{ignoreUndefinedProperties:true,localCache:M.memoryLocalCache()});
+  const M=FB.M,o={ignoreUndefinedProperties:true,localCache:M.memoryLocalCache()};
+  FB.lp=_fbLPSaved();if(FB.lp)o.experimentalForceLongPolling=true; // 2026-11-17c: 대체 연결 방식(롱폴링)
+  const db=M.initializeFirestore(FB.app,o);
   if(FB_EMU)M.connectFirestoreEmulator(db,"127.0.0.1",8085);
   return db;
 }
+/* 연결 방식 (2026-11-17c): 기본 = WebChannel 스트리밍. 일부 망·iOS·차단기는 스트리밍 응답을 막거나 모아서 보내
+   getDocsFromServer 가 'unavailable'(서버에 닿지 못함)로 끝나거나 실시간 스냅샷이 안 옴 → 롱폴링으로 인스턴스를 다시 만들고
+   그 선택을 이 기기에 기억(다음 실행부터 바로 롱폴링). 데이터·규칙·병합 방식은 그대로, 전송 방식만 바뀜 */
+var FB_LPKEY="mp.fbLP";
+function _fbLPSaved(){try{return localStorage.getItem(FB_LPKEY)==="1";}catch(e){return false;}}
+function _fbNetFail(e){const c=(e&&e.code)||"";return c==="unavailable"||c==="timeout"||c==="deadline-exceeded";}
+function _fbUseLP(why){
+  if(FB.lp||!FB.M||!FB.app)return false;
+  try{localStorage.setItem(FB_LPKEY,"1");}catch(e){}
+  const pe=FB.lastErr;_fbNoteErr("transport",(pe&&pe.code)||"long-polling","대체 연결(롱폴링)로 전환 — "+why+(pe&&pe.msg?" · "+pe.msg:""));
+  return fbResetDb("long-polling:"+why);
+}
+function _fbTimeout(p,ms,what){let t;return Promise.race([p,new Promise((_,rj)=>{t=setTimeout(()=>{const e=new Error((what||"서버 응답")+"이 "+Math.round(ms/1000)+"초 넘게 없어요");e.code="timeout";rj(e);},ms);})]).finally(()=>clearTimeout(t));}
+/* 마지막 오류 기록(진단 화면용) — 코드·짧은 문구·시각만. 토큰·비밀번호는 오류 객체에 들어오지 않음 */
+function _fbNoteErr(src,code,msg){FB.lastErr={src,code:String(code||""),msg:_fbScrub(String(msg||"").slice(0,160)),at:Date.now()};try{localStorage.setItem("mp.fbLastErr",JSON.stringify(FB.lastErr));}catch(e){}} // 다시 열어도 진단에 보이게 기기에만 보관
+try{FB.lastErr=JSON.parse(localStorage.getItem("mp.fbLastErr")||"null");}catch(e){}
 function _fbIsDead(e){return !!e&&/already been terminated/i.test(String((e&&e.message)||e));}
 /* 죽은(terminated) 인스턴스를 버리고 새로 만듦. 연결·대기 숫자 초기화 → 서버에 못 간 쓰기는 대기표(meta.p)가 다시 올림 */
 function fbResetDb(why){
@@ -4825,10 +5079,15 @@ async function fbFirstMerge(u){
   try{
     const hadLocal=_fbHasLocalData();
     if(hadLocal)await fbPreBackup();
-    const M=FB.M,q=()=>M.getDocsFromServer(M.collection(FB.db,"users",u.uid,"items"));
+    const M=FB.M,q=ms=>_fbTimeout(M.getDocsFromServer(M.collection(FB.db,"users",u.uid,"items")),ms||12000,"서버 응답");
     let snap;
     try{snap=await q();}
-    catch(e){if(!_fbIsDead(e))throw e;fbResetDb("first-merge");snap=await q();} // 죽은 인스턴스 → 새로 만들어 1번 더
+    catch(e){
+      if(_fbIsDead(e)){fbResetDb("first-merge");snap=await q(20000);} // 죽은 인스턴스 → 새로 만들어 1번 더
+      else if(_fbNetFail(e)&&navigator.onLine&&!FB.lp){ // 2026-11-17c: 서버에 못 닿음/12초 무응답 → 롱폴링으로 1번 더
+        _fbNoteErr("first",e.code,e.message);_fbUseLP("first-merge");fbSetMsg("다른 연결 방식으로 다시 해 보는 중…");snap=await q(20000);}
+      else throw e;
+    }
     const R={};snap.forEach(d=>{const x=d.data();if(x&&typeof x.u==="number"&&FB_KINDS.has(_fbSplit(d.id).k))R[d.id]=x;});
     // 1) 클라우드(삭제 아님)를 상태 모양으로 → 기존 병합 도우미로 합침. 같은 시각이면 클라우드 우선, 기기 쪽이 '더 최근'일 때만 기기 우선
     const rs={tasks:[],todos:[],memos:[],ledger:[],accounts:[],assetHistory:[],diary:{},diaryW:{},diaryM:{},monthPlan:{},weekPlan:{},done:{}};
@@ -4847,7 +5106,7 @@ async function fbFirstMerge(u){
     // 2) 클라우드 삭제표시: 기기 쪽이 그 삭제보다 나중에 고친 게 아니면 기기에서도 지움
     const E1=fbEntities(L);
     for(const id in R){const d=R[id];if(!d.del||!E1[id])continue;let lv=null;try{lv=JSON.parse(E1[id].j);}catch(e){}
-      if(_fbTs(lv)<=d.u){const s=_fbSplit(id);fbApplyEnt(L,s.k,s.key,null,true);}}
+      if(_fbTs(lv)<=d.u){const s=_fbSplit(id);if(s.k==="task"&&lv)trashTasks([lv],"다른 기기");fbApplyEnt(L,s.k,s.key,null,true);}}
     normalizeState();_writeState();
     // 3) 기준표(meta): 클라우드와 같은 항목만 '동기화됨'으로 기록 → 나머지(기기에만 있거나 기기가 이긴 것)는 아래 fbDiff가 올림
     const E2=fbEntities(),m={};
@@ -4859,7 +5118,7 @@ async function fbFirstMerge(u){
     const bk=hadLocal?await fbPostBackupFile():"";
     fbSetMsg("");toast(`☁️ 동기화 시작 — 클라우드 ${down}건 · 이 기기에서 ${up}건 올림${bk}`);
   }catch(e){
-    FB.firstBusy=false;fbSetMsg("");FB.err={src:"first",e};
+    FB.firstBusy=false;fbSetMsg("");FB.err={src:"first",e};_fbNoteErr("first",e&&e.code,e&&e.message);
     if(!(e&&e.isSaveErr))showFail({what:"처음 동기화를 시작하지 못했어요",why:_fbErrText(e),hint:"처음 연결할 때는 인터넷이 필요해요. 이 기기의 기록은 그대로예요. 연결된 뒤 '다시 시도'를 눌러 주세요.",retry:()=>{FB.err=null;if(FB.auth&&FB.auth.currentUser){FB.user=null;_fbAuthChanged(FB.auth.currentUser);}}});
   }
   fbRenderIcon();fbRenderUI();
@@ -4896,6 +5155,7 @@ function fbPush(ops){
       const m=FB.meta&&FB.meta.m,P=FB.meta&&FB.meta.p;
       if(m){part.forEach(o=>{const c=m[o.id];if(c&&c[1]===o.u){if(o.prev)m[o.id]=o.prev;else delete m[o.id];if(P&&P[o.id]===o.u)delete P[o.id];}});_fbSaveMeta();}
       if(g!==FB.gen)return; // 이미 새 인스턴스로 바뀜 → 그쪽 fbListen/fbDiff가 다시 올림
+      _fbNoteErr("push",e&&e.code,e&&e.message);
       if(_fbIsDead(e)&&_fbAutoReset("push")){fbListen();fbRenderIcon();fbRenderUI();return;} // 자동 복구 후 다시 올림
       FB.err={src:"push",e};fbRenderIcon();fbRenderUI();
       showFail({what:"동기화 서버에 "+part.length+"건을 올리지 못했어요",why:_fbErrText(e),hint:"기기에 저장된 기록은 안전해요. '다시 시도'를 누르면 다시 올려요.",retry:()=>{FB.err=null;if(_fbIsDead(e))fbResetDb("retry-push");if(!FB.unsub)fbListen();else fbDiff();fbRenderIcon();}});
@@ -4907,17 +5167,47 @@ function fbPush(ops){
 function fbListen(){
   if(!FB.user||!FB.db)return;
   if(FB.unsub){FB.unsub();FB.unsub=null;}
-  const M=FB.M,g=FB.gen;FB.pchk=false;
+  const M=FB.M,g=FB.gen;FB.pchk=false;FB.lsSrv=false;
+  // 2026-11-17c: 실시간 연결 감시 — 온라인인데 12초 안에 서버 스냅샷이 한 번도 안 오면(스트리밍이 막힌 망) 롱폴링으로 다시 연결
+  clearTimeout(FB.lsT);FB.lsT=setTimeout(()=>{
+    if(g!==FB.gen||FB.lsSrv||!FB.unsub||FB.lp||!navigator.onLine)return;
+    _fbNoteErr("listen","timeout","실시간 연결 12초 무응답");
+    if(_fbUseLP("listen-timeout")){fbListen();fbRenderIcon();fbRenderUI();}
+  },12000);
   const onErr=e=>{
     if(g!==FB.gen)return; // 옛 인스턴스의 오류 — 무시
-    FB.unsub=null;
+    FB.unsub=null;_fbNoteErr("listen",e&&e.code,e&&e.message);
     if(_fbIsDead(e)&&_fbAutoReset("listen")){fbListen();fbRenderIcon();fbRenderUI();return;}
+    if(_fbNetFail(e)&&navigator.onLine&&_fbUseLP("listen-error")){fbListen();fbRenderIcon();fbRenderUI();return;}
     FB.err={src:"listen",e};fbRenderIcon();fbRenderUI();
     showFail({what:"동기화 연결이 끊겼어요",why:_fbErrText(e),hint:"기기에 저장된 기록은 안전해요. '다시 시도'를 누르면 다시 연결해요.",retry:()=>{FB.err=null;if(_fbIsDead(e))fbResetDb("retry-listen");fbListen();fbRenderIcon();}});
   };
   try{FB.unsub=M.onSnapshot(M.collection(FB.db,"users",FB.user.uid,"items"),{includeMetadataChanges:true},_fbOnSnap,onErr);}
   catch(e){onErr(e);return;} // 죽은 인스턴스면 여기서 동기 예외
   fbDiff(); // 앱이 꺼져 있던 동안 바뀐 것 올리기
+}
+/* 멈춘 실시간 스트림 감지 (2026-11-17c): 첫 스냅샷은 왔는데 이후 변경이 안 오는 망(스트리밍 응답을 모아 두는 프록시 등 —
+   Playwright WebKit 에서 실측)을 잡음. 서버의 가장 최근 문서 1건(u 내림차순, 읽기 1회)을 이 기기 기준표와 비교 →
+   이 기기가 아직 못 받은 더 새 변경이 3초 뒤에도 안 들어와 있으면 롱폴링으로 다시 연결. '지금 맞추기'·앱 다시 보기(20초 간격)에서만 실행 */
+async function _fbStaleCheck(why,force){
+  if(!FB.user||!FB.db||!FB.meta||FB.meta.uid!==FB.user.uid||FB.firstBusy||!navigator.onLine)return false;
+  if(!force&&FB.stT&&Date.now()-FB.stT<20000)return false;
+  FB.stT=Date.now();const M=FB.M,g=FB.gen,uid=FB.user.uid;
+  const newest=async()=>{const sn=await _fbTimeout(M.getDocsFromServer(M.query(M.collection(FB.db,"users",uid,"items"),M.orderBy("u","desc"),M.limit(1))),12000,"서버 응답");
+    const d=sn.docs[0],x=d&&d.data();return (d&&x&&typeof x.u==="number")?{id:d.id,u:x.u}:null;};
+  const behind=n=>{if(!n||!FB.meta||!FB_KINDS.has(_fbSplit(n.id).k))return false;const c=FB.meta.m[n.id];return !FB.infl.has(n.id)&&(!c||c[1]<n.u);};
+  try{
+    let n=await newest();if(g!==FB.gen||!behind(n))return false;
+    await new Promise(r=>setTimeout(r,3000));if(g!==FB.gen||!behind(n))return false; // 방금 바뀐 것이면 3초 안에 스트림으로 들어옴
+    _fbNoteErr("listen","stale","실시간 변경이 안 들어옴("+why+")");
+    if(!_fbUseLP("stale-"+why)&&g!==FB.gen)return false;
+    fbListen();fbRenderIcon();fbRenderUI();return true;
+  }catch(e){
+    if(g!==FB.gen)return false;
+    _fbNoteErr("check",e&&e.code,e&&e.message);
+    if(_fbNetFail(e)&&_fbUseLP("check-"+why)){fbListen();fbRenderIcon();fbRenderUI();return true;}
+    return false;
+  }
 }
 /* 대기표 점검(연결 후 첫 서버 스냅샷 1회): 지난번에 서버 답 없이 끝난 쓰기 중 서버에 없는 것은 다시 올림.
    서버에 있고 u가 같거나 더 새것이면 받은 것으로 보고 지움. 서버 쪽이 더 옛날이면 아래 기존 규칙(cur[1]>d.u)이 다시 올림 */
@@ -4944,14 +5234,15 @@ function _fbOnSnap(snap){
     // 서버에 '더 옛날' 내용이 덮였을 때(오프라인이던 기기가 늦게 올린 경우) → 이 기기의 더 새 내용을 다시 올려 맞춤
     if(cur&&cur[1]>d.u){const rh=d.del?0:_fbHash(d.v||"");if(cur[0]!==-1&&rh!==cur[0]){m[id]=[-1,cur[1]];resend++;}return;}
     if(cur&&cur[1]===d.u)return;
-    if(d.del){if(fbApplyEnt(state,s.k,s.key,null,true))changed++;m[id]=[0,d.u];return;}
+    if(d.del){if(s.k==="task"){const ex=state.tasks.find(x=>x&&String(x.id)===s.key);if(ex)trashTasks([ex],"다른 기기");}
+      if(fbApplyEnt(state,s.k,s.key,null,true))changed++;m[id]=[0,d.u];return;}
     let v;try{v=JSON.parse(d.v);}catch(e){return;}
     const h=_fbHash(d.v);if(!cur||cur[0]!==h){if(fbApplyEnt(state,s.k,s.key,v,false))changed++;}
     m[id]=[h,d.u];
   });
   FB.fromCache=snap.metadata.fromCache;
   if(!snap.metadata.fromCache&&!FB.pchk){FB.pchk=true;resend+=_fbCheckPending(snap,m);}
-  if(!snap.metadata.fromCache){FB.meta.lastAt=Date.now();if(FB.err&&FB.err.src==="listen")FB.err=null;}
+  if(!snap.metadata.fromCache){FB.lsSrv=true;FB.meta.lastAt=Date.now();if(FB.err&&FB.err.src==="listen")FB.err=null;}
   _fbSaveMeta();
   if(changed){normalizeState();try{_writeState();}catch(e){_saveFailPanel(e);}_fbRerender();}
   if(resend)fbDiff(); // 표시(-1)된 항목은 해시가 달라 다시 올라감
@@ -4965,20 +5256,53 @@ function _fbRerender(){
 }
 
 /* ---------- 로그인 · 계정 만들기 · 로그아웃 ---------- */
-function fbSetMsg(t,isErr){const el=document.getElementById("fbMsg");if(!el)return;el.textContent=t||"";el.classList.toggle("err",!!isErr);}
+function fbSetMsg(t,isErr,code){const el=document.getElementById("fbMsg");if(!el)return;el.textContent=t||"";el.classList.toggle("err",!!isErr);el.classList.remove("ok");
+  const c=document.getElementById("fbCode");if(c){c.textContent=code?"오류 코드: "+code:"";c.hidden=!code;}}
+/* 오류 → 화면용 코드(스크린샷으로 원인 확인용). auth/… · Firestore 코드 그대로, 없으면 이름만 */
+function _fbCodeOf(e){return String((e&&e.code)||(e&&e.name)||"unknown").slice(0,60);}
+/* 비밀번호 재설정 메일 (2026-11-17c) — 입력한 이메일로 Firebase 재설정 링크 발송 */
+async function fbForgot(){
+  const em=document.getElementById("fbEmail").value.trim();
+  if(!em){fbSetMsg("비밀번호를 다시 정할 이메일을 위 칸에 먼저 입력해 주세요",1);document.getElementById("fbEmail").focus();return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){fbSetMsg("이메일 주소 형식이 아니에요 — 예: name@gmail.com",1,"auth/invalid-email");return;}
+  if(!navigator.onLine){fbSetMsg("인터넷에 연결된 뒤 다시 눌러 주세요",1,"offline");return;}
+  const btn=document.getElementById("fbForgot");btn.disabled=true;fbSetMsg("재설정 메일 보내는 중…");
+  try{
+    const M=await fbLoad();try{FB.auth.languageCode="ko";}catch(x){}
+    await M.sendPasswordResetEmail(FB.auth,em);
+    fbSetMsg("");const el=document.getElementById("fbMsg");
+    el.textContent="📧 "+em+" 로 비밀번호 재설정 메일을 보냈어요. 메일의 링크에서 새 비밀번호를 정한 뒤 여기서 로그인하세요. 몇 분 안에 안 오면 스팸함도 확인해 주세요.";
+    el.classList.add("ok");
+  }catch(e){
+    const c=(e&&e.code)||"";
+    const t=c==="auth/user-not-found"?"이 이메일로 만든 계정이 없어요 — 주소를 다시 확인해 주세요"
+      :c==="auth/invalid-email"||c==="auth/missing-email"?"이메일 주소 형식이 아니에요 — 예: name@gmail.com"
+      :c==="auth/too-many-requests"?"요청이 너무 많아 잠시 막혔어요 — 몇 분 뒤 다시 해 주세요"
+      :c==="auth/network-request-failed"?"인터넷이 끊겼거나 서버에 닿지 못했어요 — 연결을 확인하고 다시 눌러 주세요"
+      :_fbErrText(e);
+    fbSetMsg(t,1,_fbCodeOf(e));
+  }
+  btn.disabled=false;
+}
+function fbTogglePw(){
+  const show=document.getElementById("fbPw").type==="password";
+  ["fbPw","fbPw2"].forEach(id=>{const i=document.getElementById(id);if(i)i.type=show?"text":"password";});
+  const b=document.getElementById("fbPwEye");b.textContent=show?"숨기기":"보기";b.setAttribute("aria-label",show?"비밀번호 숨기기":"비밀번호 보기");b.setAttribute("aria-pressed",show?"true":"false");
+}
 async function fbSubmit(){
   const em=document.getElementById("fbEmail").value.trim(),pw=document.getElementById("fbPw").value,create=FB.mode==="create";
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){fbSetMsg("이메일 주소를 확인해 주세요",1);return;}
   if(pw.length<6){fbSetMsg("비밀번호는 6자 이상이에요",1);return;}
   if(create&&pw!==document.getElementById("fbPw2").value){fbSetMsg("비밀번호 확인이 달라요 — 같은 비밀번호를 두 번 입력해 주세요",1);return;}
-  if(!navigator.onLine){fbSetMsg("인터넷에 연결된 뒤 다시 눌러 주세요",1);return;}
+  if(!navigator.onLine){fbSetMsg("인터넷에 연결된 뒤 다시 눌러 주세요",1,"offline");return;}
   const btn=document.getElementById("fbSubmit");btn.disabled=true;fbSetMsg(create?"계정 만드는 중…":"로그인 중…");
   try{
     const M=await fbLoad();
     if(create)await M.createUserWithEmailAndPassword(FB.auth,em,pw);else await M.signInWithEmailAndPassword(FB.auth,em,pw);
     document.getElementById("fbPw").value="";document.getElementById("fbPw2").value="";FB.mode="login";
+    if(document.getElementById("fbPw").type!=="password")fbTogglePw();
     if(!FB.firstBusy)fbSetMsg("");
-  }catch(e){fbSetMsg(_fbErrText(e),1);}
+  }catch(e){_fbNoteErr("login",e&&e.code,e&&e.message);fbSetMsg(_fbErrText(e),1,_fbCodeOf(e));}
   btn.disabled=false;fbRenderUI();
 }
 async function fbLogout(){
@@ -4997,10 +5321,107 @@ async function fbSyncNow(){
     const wp=()=>FB.M.waitForPendingWrites(FB.db);
     let w;try{w=wp();}catch(e){if(!_fbIsDead(e))throw e;fbResetDb("syncnow");fbListen();w=wp();} // 죽은 인스턴스면 새로 만들고 다시
     await Promise.race([w,new Promise((_,rj)=>setTimeout(()=>rj(new Error("서버 응답이 15초 넘게 없어요")),15000))]);
-    _fbMarkLast();toast("☁️ 동기화 완료");
+    let sw=false;try{sw=await _fbStaleCheck("syncnow",true);}catch(x){}
+    _fbMarkLast();toast(sw?"☁️ 연결 방식을 바꿔 다시 맞추는 중이에요":"☁️ 동기화 완료");
   }catch(e){showFail({what:"동기화를 마치지 못했어요",why:_fbErrText(e),hint:"기기에 저장된 기록은 안전해요. 연결되면 자동으로 이어서 올려요.",retry:fbSyncNow});}
   if(gcalOn()&&gIsConnected())syncNow(false);
   fbRenderIcon();fbRenderUI();
+}
+
+/* ---------- 연결 진단 (2026-11-17c) — 실기기에서 '어디서 막히는지' 데이터를 얻기 위한 점검표 ----------
+   표시·복사에 토큰·비밀번호·전체 uid 를 절대 넣지 않음(uid 는 앞 6자만, 이메일은 가림, 모든 줄을 _fbScrub 로 한 번 더 거름) */
+function _fbUid6(){const u=FB.user&&FB.user.uid;return u?u.slice(0,6)+"…":"-";}
+function _fbMaskEmail(m){m=String(m||"");const i=m.indexOf("@");return i<1?(m?"***":"-"):m.slice(0,Math.min(2,i))+"***"+m.slice(i);}
+function _fbScrub(s){
+  s=String(s==null?"":s);
+  const u=FB.user&&FB.user.uid;if(u&&u.length>6)s=s.split(u).join(u.slice(0,6)+"…");
+  return s.replace(/eyJ[\w-]{6,}\.[\w-]{6,}\.[\w-]*/g,"[토큰 숨김]").replace(/\b[A-Za-z0-9_\-]{40,}\b/g,"[긴 값 숨김]");
+}
+function _fbUaShort(){
+  const ua=navigator.userAgent||"";let dev="기타",br="";
+  const ios=ua.match(/(?:iPhone|CPU) OS (\d+)_(\d+)/);
+  if(/iPhone/.test(ua))dev="iPhone"+(ios?" iOS "+ios[1]+"."+ios[2]:"");else if(/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1))dev="iPad"+(ios?" iOS "+ios[1]+"."+ios[2]:"");
+  else if(/Android/.test(ua))dev="Android";else if(/Windows/.test(ua))dev="Windows";else if(/Macintosh/.test(ua))dev="Mac";
+  const m=ua.match(/(CriOS|FxiOS|EdgiOS|EdgA?|SamsungBrowser|Whale|Chrome|Firefox)\/(\d+)/);
+  if(m)br=m[1].replace(/^EdgA?$/,"Edge")+" "+m[2];else{const v=ua.match(/Version\/(\d+(?:\.\d+)?)/);br=(/Safari/.test(ua)?"Safari":"WebView")+(v?" "+v[1]:"");}
+  return dev+" · "+br+(/Safari/.test(ua)?"":" · Safari 표시 없음");
+}
+function _fbStandalone(){try{return navigator.standalone===true||matchMedia("(display-mode: standalone)").matches;}catch(e){return false;}}
+async function _fbProbe(url,opt,ms){
+  const t0=performance.now(),ac=typeof AbortController!=="undefined"?new AbortController():null;let tm;
+  try{
+    if(ac)tm=setTimeout(()=>ac.abort(),ms||10000);
+    const r=await fetch(url,Object.assign({cache:"no-store",credentials:"omit"},opt||{},ac?{signal:ac.signal}:{}));
+    return {ok:true,status:r.status,ms:Math.round(performance.now()-t0)};
+  }catch(e){
+    const ms1=Math.round(performance.now()-t0),aborted=e&&e.name==="AbortError";
+    if(!aborted){ // CORS 로만 막힌 경우와 망 자체가 막힌 경우를 가르기: no-cors 로 한 번 더(응답 내용은 못 봄)
+      try{await fetch(url,{method:"GET",mode:"no-cors",cache:"no-store",credentials:"omit"});return {ok:true,status:"도달(내용 확인 불가)",ms:ms1};}catch(x){}
+    }
+    return {ok:false,err:aborted?"시간 초과("+Math.round((ms||10000)/1000)+"초)":(e&&e.name||"Error")+": "+(e&&e.message||e),ms:ms1};
+  }finally{clearTimeout(tm);}
+}
+function _fbProbeTxt(r,expect){return r.ok?("HTTP "+r.status+" · "+r.ms+"ms"+(expect?(" "+(expect.indexOf(r.status)>=0?"✅ 닿음":"⚠️ 예상 밖")):"")):("❌ 못 닿음 — "+r.err+" · "+r.ms+"ms");}
+async function fbDiagnose(){
+  const out=document.getElementById("fbDiagOut"),cp=document.getElementById("fbDiagCopy"),btn=document.getElementById("fbDiagBtn");
+  if(!out||FB.diagBusy)return;FB.diagBusy=true;if(btn)btn.disabled=true;
+  out.hidden=false;if(cp)cp.hidden=true;
+  const rows=[];
+  const paint=(busy)=>{out.innerHTML=rows.map(r=>`<div class="dg-row"><span class="dg-k">${esc(r[0])}</span><span class="dg-v">${esc(_fbScrub(r[1]))}</span></div>`).join("")+(busy?`<div class="dg-row dg-busy">${esc(busy)}</div>`:"");};
+  const add=(k,v)=>{rows.push([k,String(v)]);paint("점검 중…");};
+  const now=new Date();
+  add("점검 시각",now.getFullYear()+"-"+pad2(now.getMonth()+1)+"-"+pad2(now.getDate())+" "+pad2(now.getHours())+":"+pad2(now.getMinutes())+":"+pad2(now.getSeconds()));
+  add("앱 버전",APP_VER);
+  add("인터넷(브라우저 판단)",navigator.onLine?"온라인":"오프라인");
+  add("기기·브라우저",_fbUaShort());
+  add("홈 화면 앱(standalone)",_fbStandalone()?"예":"아니오");
+  add("로그인",FB.user?("예 · "+_fbMaskEmail(FB.user.email)+" · uid "+_fbUid6()):(fbActive()?"아니오(이전 계정 기록 있음)":"아니오"));
+  add("연결 방식(이 기기 기억)",_fbLPSaved()?"대체(롱폴링)":"기본(스트리밍)");
+  // 1) Firestore REST — 내 문서 경로(로그인 시 ID 토큰 첨부, 토큰은 요청 헤더에만 쓰고 어디에도 표시·저장 안 함)
+  const P=FB_CFG.projectId,FSB=FB_EMU?"http://127.0.0.1:8085/v1":"https://firestore.googleapis.com/v1";
+  let tok=null;try{if(FB.user)tok=await _fbTimeout(FB.user.getIdToken(),8000,"토큰 응답");}catch(e){add("ID 토큰 받기","❌ "+_fbCodeOf(e));}
+  const path=FB.user?`users/${FB.user.uid}/items`:"users/diag_probe/items";
+  const r1=await _fbProbe(`${FSB}/projects/${P}/databases/(default)/documents/${path}?pageSize=1`,tok?{headers:{Authorization:"Bearer "+tok}}:{},12000);
+  tok=null;
+  add("Firestore 서버(REST)",_fbProbeTxt(r1,FB.user?[200]:[403,401])+(r1.ok?"":" (예상: 로그인 200 / 미로그인 403)"));
+  // 2) 로그인 서버 도달 — 빈 요청(400이 정상: 닿았다는 뜻)
+  const AK=encodeURIComponent(FB_CFG.apiKey),AUB=FB_EMU?"http://127.0.0.1:9099/":"https://";
+  const r2=await _fbProbe(`${AUB}identitytoolkit.googleapis.com/v1/accounts:lookup?key=${AK}`,{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"},10000);
+  add("로그인 서버(identitytoolkit)",_fbProbeTxt(r2,[400,200]));
+  const r3=await _fbProbe(`${AUB}securetoken.googleapis.com/v1/token?key=${AK}`,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"grant_type=refresh_token"},10000);
+  add("토큰 서버(securetoken)",_fbProbeTxt(r3,[400,200]));
+  // 3) SDK 로 서버 직접 읽기(실제 앱이 쓰는 길: WebChannel)
+  if(navigator.onLine){
+    try{
+      const M=await _fbTimeout(fbLoad(),15000,"SDK 불러오기");
+      const t0=performance.now();
+      try{
+        const col=M.collection(FB.db,"users",FB.user?FB.user.uid:"diag_probe","items");
+        const sn=await _fbTimeout(M.getDocsFromServer(M.query(col,M.limit(1))),15000,"SDK 서버 응답");
+        add("SDK 서버 읽기",`✅ 성공 · ${Math.round(performance.now()-t0)}ms · ${sn.size}건`);
+      }catch(e){
+        const ok=!FB.user&&e&&e.code==="permission-denied";
+        add("SDK 서버 읽기",(ok?"✅ 닿음(미로그인이라 거절이 정상) · ":"❌ ")+_fbCodeOf(e)+" · "+Math.round(performance.now()-t0)+"ms"+(ok?"":" · "+String(e&&e.message||"").slice(0,120)));
+      }
+      add("연결 방식(지금)",FB.lp?"대체(롱폴링)":"기본(스트리밍)");
+    }catch(e){add("SDK 서버 읽기","❌ SDK를 불러오지 못함 — "+_fbCodeOf(e)+" "+String(e&&e.message||"").slice(0,100));}
+  }else add("SDK 서버 읽기","건너뜀(오프라인)");
+  add("실시간 연결",FB.user?(FB.unsub?(FB.lsSrv?"서버와 연결됨":"서버 응답 기다리는 중"):"꺼짐"):"-");
+  add("인스턴스 재생성",String(FB.resets)+"회");
+  const le=FB.lastErr;
+  add("마지막 오류",le?(le.code||"-")+" · "+le.src+" · "+_fbWhen(le.at)+(le.msg?" · "+le.msg:""):"없음");
+  if(FB.err&&FB.err.e)add("현재 오류",_fbCodeOf(FB.err.e)+" · "+FB.err.src);
+  paint("");
+  FB.diagText="마이플래너 연결 진단\n"+rows.map(r=>r[0]+": "+_fbScrub(r[1])).join("\n");
+  if(cp)cp.hidden=false;FB.diagBusy=false;if(btn)btn.disabled=false;
+  fbRenderUI();
+}
+async function fbDiagCopy(){
+  const t=FB.diagText||"";if(!t)return;
+  let ok=false;
+  try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(t);ok=true;}}catch(e){}
+  if(!ok){try{const ta=document.createElement("textarea");ta.value=t;ta.setAttribute("readonly","");ta.style.cssText="position:fixed;top:0;left:0;opacity:0";document.body.appendChild(ta);ta.select();ok=document.execCommand("copy");ta.remove();}catch(e){}}
+  toast(ok?"진단 결과를 복사했어요 — 카톡 등에 붙여 넣어 보내 주세요":"복사가 안 돼요 — 화면을 캡처해 주세요");
 }
 
 /* ---------- 상태 표시 (☁️ 버튼 점 + 동기화 시트) ---------- */
@@ -5040,8 +5461,13 @@ function fbRenderUI(){
   const em=document.getElementById("fbEmail");if(em&&!em.value&&email)em.value=email;
   const ms=document.getElementById("fbMenuStatus");
   if(ms)ms.innerHTML=inn?`${dot}<b>${esc(st[1])}</b> · ${esc(email)}<br><span style="font-size:12.5px;color:var(--muted)">마지막 동기화: ${_fbWhen(FB.meta&&FB.meta.lastAt)}</span>`
-    :(fbActive()?`${dot}<b>${esc(st[1])}</b> · ${esc(email)}`:`${dot}<b>로그인 안 됨</b> — 폰·PC를 같이 쓰려면 로그인하세요`);
+    :(fbActive()?`${dot}<b>${esc(st[1])}</b> · ${esc(email)}`:`${dot}<b>로그인 안 됨</b> — 지금은 이 기기에만 저장돼요`);
   const gn=document.getElementById("gFbNote");if(gn)gn.hidden=!fbActive();
+  // 2026-11-17c 설정 화면: 로그인 상태에 따라 버튼 묶음 전환, 비밀번호 찾기는 로그인 모드에서만
+  const ib=document.getElementById("mFbInBtns");if(ib)ib.hidden=!inn;
+  const mo=document.getElementById("mFbOpen");if(mo){mo.hidden=inn;mo.textContent=fbActive()?"다시 로그인":"로그인 · 계정 만들기";}
+  const fg=document.getElementById("fbForgot");if(fg)fg.hidden=create;
+  const ai=document.getElementById("advInfo");if(ai)ai.textContent="연결 방식: "+(_fbLPSaved()?"대체(롱폴링)":"기본")+" · 기기 ID "+String(_fbDev()).slice(0,6)+"…";
 }
 function fbOpenSheet(){
   fbRenderUI();openOverlay("syncSheet");
@@ -5055,6 +5481,14 @@ function fbBoot(){
   document.getElementById("fbLogout").onclick=fbLogout;
   document.getElementById("fbSyncNow").onclick=fbSyncNow;
   document.getElementById("mFbOpen").onclick=fbOpenSheet;
+  // 2026-11-17c: 비밀번호 찾기·보기, 연결 진단, 설정 화면의 동기화 버튼
+  document.getElementById("fbForgot").onclick=fbForgot;
+  document.getElementById("fbPwEye").onclick=fbTogglePw;
+  document.getElementById("fbDiagBtn").onclick=fbDiagnose;
+  document.getElementById("fbDiagCopy").onclick=fbDiagCopy;
+  document.getElementById("mFbSync").onclick=fbSyncNow;
+  document.getElementById("mFbLogout").onclick=fbLogout;
+  document.getElementById("mFbDiag").onclick=()=>{fbOpenSheet();setTimeout(()=>{const o=document.getElementById("fbDiagOut");fbDiagnose();if(o&&o.scrollIntoView)o.scrollIntoView({block:"nearest"});},50);};
   document.getElementById("fbGcal").onchange=e=>{
     try{if(e.target.checked)localStorage.setItem("mp.gcalOn","1");else localStorage.removeItem("mp.gcalOn");}catch(x){}
     if(e.target.checked){if(gIsConnected()){toast("구글 캘린더에도 보내요");scheduleSync();}else toast("설정(⚙️) → '구글 계정 연결'도 해 주세요");}
@@ -5062,7 +5496,7 @@ function fbBoot(){
   };
   window.addEventListener("online",()=>{if(FB.err&&FB.err.src==="load")FB.err=null;if(fbActive()&&!FB.M)fbLoad().catch(()=>{});if(FB.user)fbDiff();fbRenderIcon();fbRenderUI();});
   window.addEventListener("offline",()=>{fbRenderIcon();fbRenderUI();});
-  document.addEventListener("visibilitychange",()=>{if(document.hidden&&FB.user)fbDiff();}); // 앱을 내리기 전 남은 변경 즉시 확정
+  document.addEventListener("visibilitychange",()=>{if(document.hidden&&FB.user)fbDiff();else if(!document.hidden&&FB.user&&FB.unsub)_fbStaleCheck("visible");}); // 내리기 전 변경 확정 / 다시 볼 때 멈춘 스트림 점검
   window.addEventListener("pagehide",()=>{if(FB.user)fbDiff();});
   fbRenderIcon();fbRenderUI();
   if(fbActive())setTimeout(()=>{fbLoad().catch(e=>{FB.err={src:"load",e};fbRenderIcon();fbRenderUI();});},300);
@@ -5143,9 +5577,9 @@ function init(){
   document.getElementById("serWhole").onclick=()=>{const f=_ser&&_ser.onWhole;closeOverlay("serSheet");if(f)f();};
   document.getElementById("serPick").onclick=()=>{const f=_ser&&_ser.onPick;closeOverlay("serSheet");if(f)f();};
   document.getElementById("serCancel").onclick=()=>closeOverlay("serSheet");
-  document.getElementById("spAll").onclick=()=>{_pk.o.items.forEach(x=>_pk.sel.add(x.id));drawPick();};
+  document.getElementById("spAll").onclick=()=>{const t0=todayStr();_pk.o.items.forEach(x=>{if(!(_pk.o.protectPast&&x.date<t0))_pk.sel.add(x.id);});drawPick();}; // 2026-11-17c: 지난 일정은 일괄 선택에서 제외
   document.getElementById("spNone").onclick=()=>{_pk.sel.clear();if(_pk.o.locked)_pk.sel.add(_pk.o.locked);drawPick();};
-  document.getElementById("spRange").onclick=()=>{const a=document.getElementById("spFrom").value,b=document.getElementById("spTo").value;_pk.o.items.forEach(x=>{if(x.date>=a&&x.date<=b)_pk.sel.add(x.id);});drawPick();};
+  document.getElementById("spRange").onclick=()=>{const a=document.getElementById("spFrom").value,b=document.getElementById("spTo").value,t0=todayStr();_pk.o.items.forEach(x=>{if(x.date>=a&&x.date<=b&&!(_pk.o.protectPast&&x.date<t0))_pk.sel.add(x.id);});drawPick();};
   document.getElementById("spCancel").onclick=()=>closeOverlay("serPickSheet");
   document.getElementById("spApply").onclick=()=>{const o=_pk.o,sel=o.items.filter(x=>_pk.sel.has(x.id));closeOverlay("serPickSheet");o.onApply(sel);};
   document.getElementById("fTitle").addEventListener("input",autoScope);document.getElementById("fLoc").addEventListener("input",autoScope);
@@ -5225,21 +5659,24 @@ function init(){
   // 여러 줄 입력칸: Shift+Enter는 줄바꿈, Enter(단독)는 인식 실행
   document.getElementById("fQuick").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();applyQuick();}});
   document.getElementById("fQuick").addEventListener("paste",()=>setTimeout(applyQuick,60));
-  document.getElementById("menuBtn").onclick=()=>{fbRenderUI();renderGoogleUI();updateStorageLine();renderKw();openOverlay("menuSheet");};
+  document.getElementById("menuBtn").onclick=()=>{fbRenderUI();renderGoogleUI();updateStorageLine();renderKw();renderTrashCount();openOverlay("menuSheet");};
   document.getElementById("mExport").onclick=exportData;
+  document.getElementById("mTrash").onclick=openTrash;document.getElementById("mRecover").onclick=openRecover; // 2026-11-17c
+  document.getElementById("rsGo").onclick=rsApply;
+  document.getElementById("rsFile").onchange=e=>{const f=e.target.files&&e.target.files[0];if(f)_rsFromFile(f);e.target.value="";};
   document.getElementById("mImport").onclick=()=>document.getElementById("importFile").click();
   document.getElementById("importFile").onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);};
   document.getElementById("mImportWorkoutAug2026").onclick=importAug2026Workout;
   document.getElementById("mClearDone").onclick=()=>{
     if(confirm("완료된 (반복 아닌) 할일을 모두 삭제할까요?")){
       const remove=state.tasks.filter(t=>!(t.rep&&t.rep!=="none")&&isDone(t,t.date));
-      remove.forEach(t=>{if(t.gid){state.gdel=state.gdel||[];state.gdel.push(t.gid);}});
+      trashTasks(remove,"완료 정리");remove.forEach(t=>{if(t.gid){state.gdel=state.gdel||[];state.gdel.push(t.gid);}});
       state.tasks=state.tasks.filter(t=>(t.rep&&t.rep!=="none")||!isDone(t,t.date));
       save();renderAll();toast("정리했어요");closeMenu();scheduleSync();}
   };
   document.getElementById("mReset").onclick=()=>{
     if(confirm("정말 모든 데이터를 삭제할까요? 복구할 수 없습니다."+(fbActive()?"\n\n☁️ 동기화 중이라 같은 계정의 다른 기기(폰·PC)에서도 모두 지워져요.":"")))
-      {const keepDel=state.gdel||[];state={tasks:[],done:{},diary:{},diaryW:{},diaryM:{},todos:[],memos:[],monthPlan:{},weekPlan:{},ledger:[],accounts:[],assetHistory:[],notified:{},impFlags:{},gdel:keepDel,gSyncToken:null,gLast:0};save();renderAll();renderMemos();toast("초기화했어요");closeMenu();}
+      {trashTasks(state.tasks,"전체 초기화");const keepDel=state.gdel||[];state={tasks:[],done:{},diary:{},diaryW:{},diaryM:{},todos:[],memos:[],monthPlan:{},weekPlan:{},ledger:[],accounts:[],assetHistory:[],notified:{},impFlags:{},gdel:keepDel,gSyncToken:null,gLast:0};save();renderAll();renderMemos();toast("초기화했어요");closeMenu();}
   };
   // Google sync wiring
   gLoadCfg();
