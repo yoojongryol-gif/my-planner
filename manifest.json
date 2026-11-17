@@ -2,7 +2,7 @@
   "id": "./",
   "name": "마이 플래너",
   "short_name": "플래너",
-  "description": "일정·다이어리·가계부·메모를 한 앱에서. 구글 캘린더 동기화와 드라이브 백업 지원.",
+  "description": "시간 단위 일정·할일·다이어리를 한 앱에서. 폰·PC 자동 동기화.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
