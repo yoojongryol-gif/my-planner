@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:2026.11.17c-->
+<!--APPVER:2026.11.17d-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com https://www.gstatic.com; style-src 'unsafe-inline'; img-src 'self' data: blob: https://www.google.com; media-src data: blob:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.gstatic.com http://127.0.0.1:9099 http://127.0.0.1:8085 https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com https://generativelanguage.googleapis.com; frame-src https://accounts.google.com; worker-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -223,6 +223,10 @@
   .qm-row button,.qm-date{background:var(--surface);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 11px;font-size:13px;cursor:pointer}
   .qm-date{position:relative;overflow:hidden}.qm-date input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
   .dgz{position:fixed;z-index:400;pointer-events:none;background:var(--accent2);color:#fff;border-radius:9px;padding:6px 10px;font-size:12px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.3);opacity:.92;max-width:240px}
+  .tl-ev,.wk-ev,.ev-chip,.wk-chip,.tl-chip{cursor:grab}
+  .tl-ev,.wk-ev,.ev-chip,.wk-chip,.tl-chip,.up-row,.task{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  /* 폰: 안쪽 스크롤 상자가 화면을 덮어 페이지 스크롤이 막히던 문제(16b~) — 페이지 하나로 스크롤 */
+  @media (hover:none) and (pointer:coarse){.tl,.wk-box{max-height:none;overflow:visible}}
   .tl-ev,.wk-ev,.ev-chip{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
   .dg-src{opacity:.35!important}
   .t-ed,.ed-btn{flex:0 0 auto;min-width:40px;min-height:40px;background:var(--surface2);border:none;border-radius:10px;font-size:17px;cursor:pointer;padding:0 6px}
@@ -1910,7 +1914,7 @@ function renderList(){
     const subDone=subs.filter(s=>s.done).length;
     const progBadge=subs.length?`<span class="badge prog">✓ ${subDone}/${subs.length}</span>`:"";
     const subsHtml=subs.length?`<div class="t-subs">${subs.map(s=>`<div class="t-sub ${s.done?'done':''}"><span class="sc ${s.done?'on':''}" data-tid="${t.id}" data-sid="${s.id}">${s.done?'✓':''}</span><span>${esc(s.text)}</span></div>`).join("")}</div>`:"";
-    return `<div class="task ${d?'done':''}" style="--cat:${SCOPES[scopeOf(t)].hex};--scope:${SCOPES[scopeOf(t)].hex}">
+    return `<div class="task ${d?'done':''}" data-id="${t.id}" style="--cat:${SCOPES[scopeOf(t)].hex};--scope:${SCOPES[scopeOf(t)].hex}">
       <div class="check ${d?'on':''}" data-id="${t.id}">${d?'✓':''}</div>
       <div class="t-body">
         <div class="t-title">${impStar(t)}${esc(t.title)}</div>${t.desc?`<div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${esc(_firstLine(t.desc))}</div>`:""}
@@ -3739,7 +3743,7 @@ function renderWeek(){
   lays.forEach(sp=>sp.forEach(x=>{sh=Math.min(sh,Math.floor(x.st/60));eh=Math.max(eh,Math.ceil(x.en/60));}));eh=Math.min(24,eh);
   const H=(eh-sh)*TL_PX;
   const head=`<div class="wk-head"><div></div>${days.map((ds,i)=>`<div class="${ds===td?'tdy':''}">${dn[i]}<b>${+ds.slice(8)}</b></div>`).join("")}</div>`;
-  const adH=per.some(a=>a.some(t=>!t.time))?`<div class="wk-ad"><div>종일</div>${per.map((a,pi)=>`<div>${a.filter(t=>!t.time).map(t=>`<div class="wk-chip${isDone(t,days[pi])?' dn':''}" data-id="${t.id}" style="background:${SCOPES[scopeOf(t)].hex}${priOf(t)===3?';opacity:.6':''}${isHi(t)?';outline:1.5px solid #ef4444':''}">${_wkMark(t)}${esc(t.title)}</div>`).join("")}</div>`).join("")}</div>`:"";
+  const adH=per.some(a=>a.some(t=>!t.time))?`<div class="wk-ad"><div>종일</div>${per.map((a,pi)=>`<div data-ds="${days[pi]}">${a.filter(t=>!t.time).map(t=>`<div class="wk-chip${isDone(t,days[pi])?' dn':''}" data-id="${t.id}" style="background:${SCOPES[scopeOf(t)].hex}${priOf(t)===3?';opacity:.6':''}${isHi(t)?';outline:1.5px solid #ef4444':''}">${_wkMark(t)}${esc(t.title)}</div>`).join("")}</div>`).join("")}</div>`:"";
   let rows="";for(let h=sh;h<eh;h++)rows+=`<div class="wk-hl" style="top:${(h-sh)*TL_PX}px"><span>${pad(h)}</span></div>`;
   const cols=days.map((ds,i)=>{
     const evs=lays[i].map(x=>{const t=x.t,top=(x.st/60-sh)*TL_PX,h=Math.max(20,(x.en-x.st)/60*TL_PX-2);
@@ -4184,15 +4188,28 @@ function qmMove(t,dd,dm,abs){
 }
 /* ---- 길게 눌러 드래그 (터치·마우스) ---- */
 let dg=null,_lastTouch=0;window._dgBusy=false;window._dgClick=false;
-function dgEl(t){return t&&t.closest?t.closest(".wk-ev[data-id],.tl-ev[data-id],.ev-chip[data-id]"):null;}
+function dgEl(t){
+  if(!t||!t.closest)return null;
+  if(t.closest("button,input,select,textarea,.check,.sc,.t-del,.t-ed"))return null; /* 버튼 위에서 시작한 건 드래그 아님 */
+  return t.closest(".wk-ev[data-id],.tl-ev[data-id],.ev-chip[data-id],.wk-chip[data-id],.tl-chip[data-id],.up-row[data-id],.task[data-id]");
+}
+var DG_HOLD=450; /* 터치: 이만큼 가만히 눌러야 드래그 시작 — 그 전에 움직이면 스크롤 */
+function dgKind(el){
+  if(el.classList.contains("wk-ev")||el.classList.contains("wk-chip"))return "w";
+  if(el.classList.contains("tl-ev"))return "d";
+  if(el.classList.contains("ev-chip"))return "m";
+  if(el.classList.contains("task")&&vwMode==="m")return "m"; /* 월 보기 아래 목록 → 달력 칸으로 */
+  return "x"; /* 놓을 곳이 없는 화면(다가오는·일 목록·종일칩 등) → 안내만 */
+}
 function dgBegin(el,x,y,touch){
   const t=state.tasks.find(k=>k.id===el.dataset.id);if(!t)return;
-  dg={el,t,kind:el.classList.contains("wk-ev")?"w":el.classList.contains("tl-ev")?"d":"m",x0:x,y0:y,touch,active:false,target:null,oy:y-el.getBoundingClientRect().top};
-  dg.timer=setTimeout(dgActivate,350);
+  dg={el,t,kind:dgKind(el),x0:x,y0:y,touch,active:false,target:null,oy:y-el.getBoundingClientRect().top};
+  dg.timer=setTimeout(dgActivate,touch?DG_HOLD:350);
 }
 function dgCancel(){if(dg){clearTimeout(dg.timer);if(dg.ghost)dg.ghost.remove();if(dg.el)dg.el.classList.remove("dg-src");}dg=null;}
 function dgActivate(){
   if(!dg||dg.active)return;
+  if(dg.kind==="x"){toast("일정 옮기기는 월·주·일(시간표) 보기에서 끌어요. 지금 화면에선 일정을 눌러 '빠른 이동'을 쓰세요");dgCancel();window._dgClick=true;setTimeout(()=>{window._dgClick=false;},350);return;}
   if(!isMovable(dg.t)){toast("반복(음력·매년·예전 방식) 일정은 상세에서 '한 달치 일정으로 바꾸기' 후 옮길 수 있어요");dgCancel();return;}
   dg.active=true;window._dgBusy=true;try{navigator.vibrate&&navigator.vibrate(10);}catch(e){}
   const g=document.createElement("div");g.className="dgz";g.textContent=dg.t.title;document.body.appendChild(g);dg.ghost=g;dg.el.classList.add("dg-src");
@@ -4209,7 +4226,7 @@ function dgMove(x,y){
   let date=dg.t.date,time=null,ok=false;
   const calcTime=gridId=>{const grid=document.getElementById(gridId);if(!grid||!dg.t.time)return null;const sh=+grid.dataset.sh;const gy=y-dg.oy-grid.getBoundingClientRect().top;
     const m=Math.max(0,Math.min(1410,Math.round((sh*60+gy/TL_PX*60)/30)*30));return _hhmm(m);};
-  if(dg.kind==="w"){const col=under&&under.closest(".wk-col");if(col){date=col.dataset.ds;time=calcTime("wkGrid");ok=true;}}
+  if(dg.kind==="w"){const col=under&&under.closest(".wk-col,.wk-ad>div[data-ds]");if(col){date=col.dataset.ds;time=calcTime("wkGrid");ok=true;}}
   else if(dg.kind==="d"){time=calcTime("tlBody");ok=!!time;}
   else{const cell=under&&under.closest(".day[data-ds]");if(cell){date=cell.dataset.ds;ok=true;}}
   dg.target=ok?{date,time}:null;

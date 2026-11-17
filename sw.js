@@ -2,7 +2,7 @@
    주의: VER은 index.html 상단 APPVER 주석과 함께 올릴 것 (앱 셸 캐시 무효화 기준).
    페이지(index)는 network-first → 기존 APPVER 자동 새로고침(checkAppUpdate)과 공존, 옛 페이지 고착 없음.
    구글 OAuth·API 등 외부 요청은 손대지 않음(동일 오리진 + gstatic Firebase SDK만 처리). */
-const VER = "2026.11.17c";
+const VER = "2026.11.17d";
 const CACHE = "mp-" + VER;
 const FBSDK_CACHE = "mpfb-10.12.2"; // "mp-"로 시작하지 않아 버전 교체 때 지워지지 않음
 const SHELL = ["./", "manifest.json", "icon-192.png", "icon-512.png", "icon-maskable.png", "apple-touch-icon.png"];
