@@ -297,9 +297,9 @@
   #serPickSheet{z-index:140}
   .sp-row{display:flex;gap:10px;align-items:center;padding:9px 6px;border-bottom:1px solid var(--line);font-size:14px}
   .sp-row.past{opacity:.5}.sp-row input{width:20px;height:20px}
-  .overlay{height:var(--vvh,100%);bottom:auto}
+  .overlay{height:var(--vvh,100%);top:var(--vvt,0px);bottom:auto}
   .overlay.open{display:flex}
-  .sheet{position:relative;background:var(--surface);width:100%;max-width:680px;border-radius:22px 22px 0 0;padding:18px 18px calc(22px + var(--safe-bot));max-height:92vh;overflow-y:auto;animation:up .25s ease}
+  .sheet{position:relative;background:var(--surface);width:100%;max-width:680px;border-radius:22px 22px 0 0;padding:18px 18px calc(22px + var(--safe-bot));max-height:min(92vh,calc(var(--vvh,100vh) - 8px));overflow-y:auto;overscroll-behavior:contain;animation:up .25s ease}
   @keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
   .sheet h3{margin:2px 38px 16px 0;font-size:18px}
   .grab{width:40px;height:4px;background:var(--line);border-radius:4px;margin:0 auto 14px}
@@ -3666,7 +3666,7 @@ function renderEventSearch(q){
 /* ----- 일정 결과 기록(회의록) ----- */
 const MEETING_TPL="참석자: \n\n논의 내용:\n\n결정 사항:\n\n다음 할 일:\n- ";
 let resTimer=null;
-try{if(window.visualViewport){const f=()=>document.documentElement.style.setProperty('--vvh',window.visualViewport.height+'px');window.visualViewport.addEventListener('resize',f);f();}}catch(e){}
+try{if(window.visualViewport){const f=()=>{const r=document.documentElement.style;r.setProperty('--vvh',window.visualViewport.height+'px');r.setProperty('--vvt',window.visualViewport.offsetTop+'px');};window.visualViewport.addEventListener('resize',f);window.visualViewport.addEventListener('scroll',f);f();}}catch(e){}
 function growDesc(){const t=document.getElementById("fDesc");t.style.height="auto";t.style.height=Math.max(78,t.scrollHeight+2)+"px";}
 function growResult(){const t=document.getElementById("fResult");t.style.height="auto";t.style.height=Math.max(90,t.scrollHeight+2)+"px";}
 function resultAutosave(){
