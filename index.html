@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<!--APPVER:2026.11.17e-->
+<!--APPVER:2026.11.18a-->
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://accounts.google.com https://www.gstatic.com; style-src 'unsafe-inline'; img-src 'self' data: blob: https://www.google.com; media-src data: blob:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.gstatic.com http://127.0.0.1:9099 http://127.0.0.1:8085 https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://open.er-api.com https://generativelanguage.googleapis.com; frame-src https://accounts.google.com; worker-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
@@ -251,11 +251,31 @@
   /* task item */
   .task{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px;display:flex;gap:11px;align-items:flex-start;position:relative;overflow:hidden}
   .task::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--cat,var(--accent))}
+  /* 완료 체크 버튼 (2026-11-18): 터치 영역 44px, 보이는 원은 작게 */
+  button.ck{flex:0 0 auto;position:relative;width:44px;height:44px;margin:-10px -9px -10px -9px;padding:0;border:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent;color:inherit}
+  button.ck i{font-style:normal;width:24px;height:24px;border-radius:50%;border:2px solid var(--ckc,var(--muted));box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;color:#fff;background:var(--surface);transition:.15s}
+  button.ck.on i{background:var(--green);border-color:var(--green)}
+  button.ck.ck-s{position:absolute;left:0;top:0;width:28px;height:100%;min-height:22px;margin:0;align-items:flex-start;padding-top:3px;box-sizing:border-box}
+  button.ck.ck-s i{width:16px;height:16px;font-size:11px;border-width:1.5px;background:rgba(255,255,255,.85);color:#fff;border-color:#fff}
+  button.ck.ck-s.on i{background:var(--green);border-color:#fff}
+  button.ck.ck-w{width:15px}button.ck.ck-w i{width:11px;height:11px;font-size:8px;border-width:1px}
+  .tl-ev:has(.ck-s){padding-left:30px}.tl-chip:has(.ck-s){position:relative;padding-left:30px}.wk-ev:has(.ck-w){padding-left:15px}.wk-chip:has(.ck-s){position:relative;padding-left:30px}
+  .mv-item button.ck{width:44px;height:36px;margin:-6px -8px -6px -10px}
+  .mv-item.done .mdot{opacity:.4}
+  .dp-row button.ck{align-self:center;margin:-10px -10px -10px -12px}
+  .up-row button.ck{margin:-10px -4px -10px -10px}
+  .up-row.dn{opacity:.55}.up-row.dn .un{text-decoration:line-through}
+  .nochk{font-size:10.5px;font-weight:600;color:var(--muted);border:1px dashed var(--muted);border-radius:7px;padding:0 5px;margin-left:6px;white-space:nowrap;opacity:.85}
+  .up-past{opacity:.9}.up-pastbox{margin-bottom:6px}
+  .done-row{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:6px 12px 6px 4px;margin-bottom:10px}
+  .done-row.on{border-color:var(--green)}
+  .done-row button.ck{margin:0}
+  .done-row .dr-t{display:flex;flex-direction:column;gap:1px;font-size:14px}.done-row .dr-t small{color:var(--muted);font-size:12px}
   .check{flex:0 0 auto;width:24px;height:24px;border-radius:50%;border:2px solid var(--muted);margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;transition:.15s}
   .check.on{background:var(--green);border-color:var(--green)}
   .t-body{flex:1;min-width:0}
   .t-title{font-size:15px;font-weight:600;word-break:break-word}
-  .task.done .t-title{text-decoration:line-through;color:var(--muted)}
+  .task.done .t-title{text-decoration:line-through;color:var(--muted)}.task.done{opacity:.75}.task button.ck{margin:-10px -10px -10px -10px}
   .t-meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:5px;font-size:11px;color:var(--muted);align-items:center}
   .badge{padding:2px 8px;border-radius:8px;font-weight:600;font-size:11px}
   .badge.cat{color:#fff}
@@ -864,6 +884,7 @@
       <div class="qm-row"><button type="button" data-qm="-30">−30분</button><button type="button" data-qm="30">+30분</button></div>
       <div class="qm-row" id="qmExtra"></div>
     </div>
+    <div id="doneRow" class="done-row" style="display:none"></div>
     <label class="fld">제목</label>
     <input id="fTitle" placeholder="예: 박운기 면담" autocomplete="off" maxlength="200">
     <label class="fld">내용</label>
@@ -1657,7 +1678,22 @@ function occursOn(t,dateStr){
 }
 function doneKey(t,dateStr){return (t.lunar||(t.rep&&t.rep!=="none"))? t.id+"|"+dateStr : t.id;}
 function isDone(t,dateStr){return !!state.done[doneKey(t,dateStr)];}
-function toggleDone(t,dateStr){const k=doneKey(t,dateStr);if(state.done[k])delete state.done[k];else state.done[k]=true;save();}
+function toggleDone(t,dateStr){const k=doneKey(t,dateStr);if(state.done[k])delete state.done[k];else state.done[k]=Date.now();save();}
+/* 일정 완료 체크 (2026-11-18) — 모든 화면 공통. 값=체크한 시각(ms), 옛 값 true도 완료로 읽음. 반복 일정은 그 날짜 1회만. */
+function doneAt(t,ds){const v=state.done[doneKey(t,ds)];return typeof v==="number"?v:0;}
+function _fmtDoneAt(ms){const d=new Date(ms),n=new Date();const hm=pad2(d.getHours())+":"+pad2(d.getMinutes());return (d.toDateString()===n.toDateString()?"오늘 ":(d.getMonth()+1)+"/"+d.getDate()+" ")+hm;}
+function _isPastUndone(t,ds){const ts=todayStr();if(isDone(t,ds))return false;if(ds<ts)return true;if(ds>ts)return false;return !!t.time&&_evEnd(t,ds)<=Date.now();}
+function ckBtn(t,ds,cls){const d=isDone(t,ds);const hex=SCOPES[scopeOf(t)].hex;return `<button type="button" class="ck ${cls||""}${d?" on":""}" data-ck="${t.id}" data-ds="${ds}" style="--ckc:${hex}" aria-pressed="${d}" aria-label="${d?"완료 취소":"완료 체크"}"><i>${d?"✓":""}</i></button>`;}
+function _doneToast(t,ds,wasRaw){
+  const nowDone=isDone(t,ds);const k=doneKey(t,ds);
+  toastUndo(nowDone?`✓ 완료했어요 · ${t.title.slice(0,18)}`:`완료를 취소했어요 · ${t.title.slice(0,18)}`,()=>{if(wasRaw)state.done[k]=wasRaw;else delete state.done[k];save();renderAll();_refreshDoneRow();});
+}
+function toggleDoneUi(t,ds){
+  if(!t)return;ds=ds||selDate;const k=doneKey(t,ds);const was=state.done[k];
+  toggleDone(t,ds);renderAll();_doneToast(t,ds,was);_refreshDoneRow();
+}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("button.ck");if(!b)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+  const t=state.tasks.find(x=>String(x.id)===b.dataset.ck);toggleDoneUi(t,b.dataset.ds);},true);
 
 /* tasks occurring on a given date */
 function tasksOn(dateStr){return state.tasks.filter(t=>occursOn(t,dateStr));}
@@ -1840,9 +1876,9 @@ function renderTimeline(tasks){
   const evs=sp.map(x=>{
     const t=x.t,k=scopeOf(t),top=(x.st/60-sh)*TL_PX,h=Math.max(22,(x.en-x.st)/60*TL_PX-2);
     const w=100/x.ncol;
-    return `<div class="tl-ev${isDone(t,selDate)?' dn':''}" data-id="${t.id}" style="top:${top}px;height:${h}px;left:calc(46px + (100% - 50px) * ${x.col/x.ncol});width:calc((100% - 50px) * ${1/x.ncol} - 2px);background:${SCOPES[k].hex}${priOf(t)===3?';opacity:.6':''}${isHi(t)?';outline:2px solid #ef4444;outline-offset:-2px;font-weight:800;z-index:2':''}"><b>${_hhmm(x.st)}${t.endTime?"~"+_hhmm(x.en):""}</b>${isHi(t)?'❗':''}${evIcons(t)} ${esc(t.title)}</div>`;
+    return `<div class="tl-ev${isDone(t,selDate)?' dn':''}" data-id="${t.id}" style="top:${top}px;height:${h}px;left:calc(46px + (100% - 50px) * ${x.col/x.ncol});width:calc((100% - 50px) * ${1/x.ncol} - 2px);background:${SCOPES[k].hex}${priOf(t)===3?';opacity:.6':''}${isHi(t)?';outline:2px solid #ef4444;outline-offset:-2px;font-weight:800;z-index:2':''}">${ckBtn(t,selDate,"ck-s")}<b>${_hhmm(x.st)}${t.endTime?"~"+_hhmm(x.en):""}</b>${isHi(t)?'❗':''}${evIcons(t)} ${esc(t.title)}</div>`;
   }).join("");
-  const ad=allday.length?`<div class="tl-allday"><b>종일</b><div class="tl-chips">${allday.map(t=>`<div class="tl-chip" data-id="${t.id}" style="background:${SCOPES[scopeOf(t)].hex}${priOf(t)===3?';opacity:.6':''}${isHi(t)?';outline:2px solid #ef4444':''}${isDone(t,selDate)?';opacity:.5;text-decoration:line-through':''}">${isHi(t)?'❗':''}${esc(t.title)}</div>`).join("")}</div></div>`:"";
+  const ad=allday.length?`<div class="tl-allday"><b>종일</b><div class="tl-chips">${allday.map(t=>`<div class="tl-chip" data-id="${t.id}" style="background:${SCOPES[scopeOf(t)].hex}${priOf(t)===3?';opacity:.6':''}${isHi(t)?';outline:2px solid #ef4444':''}${isDone(t,selDate)?';opacity:.5;text-decoration:line-through':''}">${ckBtn(t,selDate,"ck-s")}${isHi(t)?'❗':''}${esc(t.title)}</div>`).join("")}</div></div>`:"";
   const isToday=selDate===todayStr();
   const _pt=document.getElementById("tlBox")?document.getElementById("tlBox").scrollTop:0;
   el.innerHTML=`<div class="tl" id="tlBox">${ad}<div class="tl-body" id="tlBody" style="height:${H}px">${rows}${evs}${isToday?`<div class="tl-now" id="tlNow"></div>`:""}</div></div>`+(tasks.length?"":`<div style="color:var(--muted);font-size:12.5px;text-align:center;margin:-2px 0 8px">빈 시간을 눌러 일정을 추가해보세요</div>`);
@@ -1850,12 +1886,12 @@ function renderTimeline(tasks){
   body.dataset.sh=sh;
   body.onclick=e=>{
     const ev=e.target.closest(".tl-ev");
-    if(ev){const t=state.tasks.find(x=>x.id===ev.dataset.id);if(t)openEdit(t);return;}
+    if(ev){const t=state.tasks.find(x=>x.id===ev.dataset.id);if(t)openEdit(t,selDate);return;}
     const y=e.clientY-body.getBoundingClientRect().top;
     const h=Math.min(eh-1,sh+Math.floor(y/TL_PX));
     openAddAt(h);
   };
-  el.querySelectorAll(".tl-chip").forEach(c=>c.onclick=()=>{const t=state.tasks.find(x=>x.id===c.dataset.id);if(t)openEdit(t);});
+  el.querySelectorAll(".tl-chip").forEach(c=>c.onclick=()=>{const t=state.tasks.find(x=>x.id===c.dataset.id);if(t)openEdit(t,selDate);});
   updateNowLine();
   const key=selDate+"|"+tlMode;
   if(tlScrollKey===key&&_pt)document.getElementById("tlBox").scrollTop=_pt;
@@ -1915,9 +1951,9 @@ function renderList(){
     const progBadge=subs.length?`<span class="badge prog">✓ ${subDone}/${subs.length}</span>`:"";
     const subsHtml=subs.length?`<div class="t-subs">${subs.map(s=>`<div class="t-sub ${s.done?'done':''}"><span class="sc ${s.done?'on':''}" data-tid="${t.id}" data-sid="${s.id}">${s.done?'✓':''}</span><span>${esc(s.text)}</span></div>`).join("")}</div>`:"";
     return `<div class="task ${d?'done':''}" data-id="${t.id}" style="--cat:${SCOPES[scopeOf(t)].hex};--scope:${SCOPES[scopeOf(t)].hex}">
-      <div class="check ${d?'on':''}" data-id="${t.id}">${d?'✓':''}</div>
+      ${ckBtn(t,selDate,"ck-l")}
       <div class="t-body">
-        <div class="t-title">${impStar(t)}${esc(t.title)}</div>${t.desc?`<div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${esc(_firstLine(t.desc))}</div>`:""}
+        <div class="t-title">${impStar(t)}${esc(t.title)}${_isPastUndone(t,selDate)?'<span class="nochk">체크 안 함</span>':''}</div>${t.desc?`<div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${esc(_firstLine(t.desc))}</div>`:""}
         <div class="t-meta">
           ${scopeTag(t)}${evIcons(t)?`<span>${evIcons(t)}</span>`:""}${t.result?'<span class="badge" style="background:var(--surface2);color:var(--text)">📝 기록</span>':''}${t.files&&t.files.length?'<span class="badge" style="background:var(--surface2);color:var(--text)">📎 '+t.files.length+'</span>':''}
           ${t.time?`<span>🕐 ${fmtTime(t.time)}${t.endTime?" ~ "+fmtTime(t.endTime):""}</span>`:""}
@@ -1932,12 +1968,9 @@ function renderList(){
       <button class="t-ed" data-ed="${t.id}" aria-label="수정">✏️</button><button class="t-del" data-del="${t.id}">✕</button>
     </div>`;
   }).join("");
-  el.querySelectorAll(".check").forEach(c=>c.onclick=()=>{
-    const t=state.tasks.find(x=>x.id===c.dataset.id);toggleDone(t,selDate);renderAll();
-  });
   el.querySelectorAll(".t-ed").forEach(b=>b.onclick=e=>{e.stopPropagation();const t=state.tasks.find(x=>x.id===b.dataset.ed);if(t)openEdit(t);});
   el.querySelectorAll(".t-del").forEach(b=>b.onclick=()=>{const t=state.tasks.find(x=>x.id===b.dataset.del);if(t)deleteTaskFlow(t);});
-  el.querySelectorAll(".t-title").forEach((tt,i)=>{tt.onclick=()=>openEdit(tasks[i]);});
+  el.querySelectorAll(".t-title").forEach((tt,i)=>{tt.onclick=()=>openEdit(tasks[i],selDate);});
   el.querySelectorAll(".t-sub .sc").forEach(sc=>sc.onclick=e=>{e.stopPropagation();toggleSub(sc.dataset.tid,sc.dataset.sid);});
 }
 function toggleSub(tid,sid){
@@ -3148,7 +3181,7 @@ function renderMonthView(){
     const itemsHtml=o.tasks.map(t=>{
       const cc=CATS[t.cat]||CATS.etc;
       const dn=isDone(t,o.ds);
-      return `<div class="mv-item${dn?' done':''}"><span class="mdot" style="background:${SCOPES[scopeOf(t)].hex}"></span><span class="mtitle">${isHi(t)?'❗':''}${evIcons(t)}${esc(t.title)}</span>${t.time?`<span class="mtime">${fmtTime(t.time)}</span>`:""}</div>`;
+      return `<div class="mv-item${dn?' done':''}">${ckBtn(t,o.ds,"ck-m")}<span class="mdot" style="background:${SCOPES[scopeOf(t)].hex}"></span><span class="mtitle">${isHi(t)?'❗':''}${evIcons(t)}${esc(t.title)}</span>${_isPastUndone(t,o.ds)?'<span class="nochk">체크 안 함</span>':''}${t.time?`<span class="mtime">${fmtTime(t.time)}</span>`:""}</div>`;
     }).join("");
     html+=`<div class="mv-drow ${isToday?'today':''}" data-ds="${o.ds}"${isToday?' id="mvTodayRow"':''}>
       <div class="mv-dhead ${o.dow===0?'sun':''}${o.dow===6?'sat':''} ${hol?'hol':''}">
@@ -3429,7 +3462,14 @@ function openAdd(){
   openOverlay("sheet");
   setTimeout(()=>document.getElementById("fTitle").focus(),300);
 }
-function openEdit(t){
+let editDs=null;
+function _refreshDoneRow(){const w=document.getElementById("doneRow");if(!w)return;const t=editId?state.tasks.find(x=>x.id===editId):null;if(!t||!document.getElementById("sheet").classList.contains("open")&&0){w.style.display="none";return;}
+  const ds=editDs||t.date;const d=isDone(t,ds);const at=doneAt(t,ds);w.style.display="";
+  const dd=_pd(ds);const lab=((t.rep&&t.rep!=="none")||t.lunar)?` <small>(${dd.getMonth()+1}/${dd.getDate()} 일정만)</small>`:"";
+  w.className="done-row"+(d?" on":"");
+  w.innerHTML=`${ckBtn(t,ds,"ck-l")}<div class="dr-t"><b>${d?"완료했어요":"완료 체크"}${lab}</b><small>${d?(at?_fmtDoneAt(at)+"에 체크":"체크됨"):(_isPastUndone(t,ds)?"체크 안 함 · 지난 일정이에요":"끝내면 눌러 주세요")}</small></div>`;}
+function openEdit(t,ds){
+  editDs=ds||selDate||t.date;
   editId=t.id;curRep=t.rep||"none";curCat=t.cat;curScope=scopeOf(t);scopeBase=curScope;scopeTouched=false;scopeAutoOK=!SCOPES[t.scope];document.getElementById("scopeHint").textContent="";
   curFiles=(t.files||[]).map(f=>({...f}));renderFileList();document.getElementById("fResWrap").style.display="";document.getElementById("fMore").open=!!((t.remind&&t.remind!=="none")||t.loc||(t.rep&&t.rep!=="none")||(t.subs&&t.subs.length)||(t.files&&t.files.length));
   {const r=document.getElementById("fResult");r.value=t.result||"";document.getElementById("fResSaved").textContent="";setTimeout(growResult,350);}
@@ -3447,6 +3487,7 @@ function openEdit(t){
   if(t.lunar){document.getElementById("fLunarM").value=t.lmonth;document.getElementById("fLunarD").value=t.lday;document.getElementById("fLunarLeap").checked=!!t.lleap;setLunarMode(true);}
   else{const lt=t.date?solar2lunar(parseYmd(t.date).getFullYear(),parseYmd(t.date).getMonth()+1,parseYmd(t.date).getDate()):null;if(lt){document.getElementById("fLunarM").value=lt.month;document.getElementById("fLunarD").value=lt.day;}document.getElementById("fLunarLeap").checked=false;setLunarMode(false);}
   renderQm(t);document.getElementById("fDesc").value=t.desc||"";setTimeout(growDesc,350);
+  _refreshDoneRow();
   {const lock=!!t.seriesId;document.getElementById("repSeg").style.display=lock?"none":document.getElementById("repSeg").style.display;const lb=document.getElementById("repSeg").previousElementSibling;if(lb&&lb.classList.contains("fld"))lb.style.display=lock?"none":lb.style.display;}
   openOverlay("sheet");
 }
@@ -3661,7 +3702,7 @@ function renderEventSearch(q){
     const r=t.result||"",i=r.toLowerCase().indexOf(Q),snip=i>=0?"📝 …"+esc(r.slice(Math.max(0,i-15),i+40)):(t.result?"📝 기록 있음":"");
     return `<div class="dp-row" data-id="${t.id}" style="flex-wrap:wrap">${sdot(scopeOf(t))}${impStar(t)}<b>${t.date.slice(5).replace("-","/")}</b><span style="${isDone(t,t.date)?'text-decoration:line-through;color:var(--muted)':''}">${esc(t.title)} ${evIcons(t)}</span>${snip?`<div style="flex-basis:100%;font-size:11.5px;color:var(--muted);white-space:normal">${snip}</div>`:""}</div>`;
   }).join("");
-  el.querySelectorAll(".dp-row").forEach(r=>r.onclick=()=>{const t=state.tasks.find(x=>x.id===r.dataset.id);if(t){selDate=t.date;viewY=parseYmd(t.date).getFullYear();viewM=parseYmd(t.date).getMonth();openEdit(t);}});
+  el.querySelectorAll(".dp-row").forEach(r=>r.onclick=()=>{const t=state.tasks.find(x=>x.id===r.dataset.id);if(t){selDate=t.date;viewY=parseYmd(t.date).getFullYear();viewM=parseYmd(t.date).getMonth();openEdit(t,t.date);}});
 }
 /* ----- 일정 결과 기록(회의록) ----- */
 const MEETING_TPL="참석자: \n\n논의 내용:\n\n결정 사항:\n\n다음 할 일:\n- ";
@@ -3733,9 +3774,9 @@ function renderWeek(){
       const evs=per[i].slice().sort((a,b)=>(a.time||"").localeCompare(b.time||"")||priOf(a)-priOf(b));
       const tds=activeTodos().filter(x=>x.due===ds&&scopeOK(x)).sort(_tdSort);
       return `<div class="wk-sec ${ds===td?'tdy':''}">${+ds.slice(5,7)}/${+ds.slice(8)}(${dn[i]})${ds===td?" · 오늘":""}</div>`+
-        (evs.length||tds.length?evs.map(t=>`<div class="dp-row" data-id="${t.id}" style="${isDone(t,ds)?'opacity:.5':''}">${sdot(scopeOf(t))}<b>${t.time?_hhmm(_tmin(t.time)):"종일"}</b><span style="white-space:normal;${isDone(t,ds)?'text-decoration:line-through':''}">${_wkMark(t)} ${esc(t.title)}${t.desc?`<div style="font-size:11.5px;color:var(--muted)">${esc(_firstLine(t.desc))}</div>`:""}</span></div>`).join("")+tds.map(x=>`<div class="td-srow ${x.done?'done':''}"><button class="td-chk" data-id="${x.id}">${x.done?'✓':''}</button><span>${impStar(x)}${esc(x.text)}</span></div>`).join(""):`<div style="color:var(--muted);font-size:12px;padding:2px">일정 없음</div>`);
+        (evs.length||tds.length?evs.map(t=>`<div class="dp-row" data-id="${t.id}" data-ds="${ds}" style="${isDone(t,ds)?'opacity:.55':''}">${ckBtn(t,ds,"ck-r")}${sdot(scopeOf(t))}<b>${t.time?_hhmm(_tmin(t.time)):"종일"}</b><span style="white-space:normal;${isDone(t,ds)?'text-decoration:line-through':''}">${_wkMark(t)} ${esc(t.title)}${t.desc?`<div style="font-size:11.5px;color:var(--muted)">${esc(_firstLine(t.desc))}</div>`:""}</span></div>`).join("")+tds.map(x=>`<div class="td-srow ${x.done?'done':''}"><button class="td-chk" data-id="${x.id}">${x.done?'✓':''}</button><span>${impStar(x)}${esc(x.text)}</span></div>`).join(""):`<div style="color:var(--muted);font-size:12px;padding:2px">일정 없음</div>`);
     }).join("");
-    el.querySelectorAll(".dp-row").forEach(r=>r.onclick=()=>{const t=state.tasks.find(x=>x.id===r.dataset.id);if(t)openEdit(t);});
+    el.querySelectorAll(".dp-row").forEach(r=>r.onclick=()=>{const t=state.tasks.find(x=>x.id===r.dataset.id);if(t)openEdit(t,r.dataset.ds);});
     el.querySelectorAll(".td-chk").forEach(b=>b.onclick=()=>toggleTodo(b.dataset.id));
     return;
   }
@@ -3743,22 +3784,22 @@ function renderWeek(){
   lays.forEach(sp=>sp.forEach(x=>{sh=Math.min(sh,Math.floor(x.st/60));eh=Math.max(eh,Math.ceil(x.en/60));}));eh=Math.min(24,eh);
   const H=(eh-sh)*TL_PX;
   const head=`<div class="wk-head"><div></div>${days.map((ds,i)=>`<div class="${ds===td?'tdy':''}">${dn[i]}<b>${+ds.slice(8)}</b></div>`).join("")}</div>`;
-  const adH=per.some(a=>a.some(t=>!t.time))?`<div class="wk-ad"><div>종일</div>${per.map((a,pi)=>`<div data-ds="${days[pi]}">${a.filter(t=>!t.time).map(t=>`<div class="wk-chip${isDone(t,days[pi])?' dn':''}" data-id="${t.id}" style="background:${SCOPES[scopeOf(t)].hex}${priOf(t)===3?';opacity:.6':''}${isHi(t)?';outline:1.5px solid #ef4444':''}">${_wkMark(t)}${esc(t.title)}</div>`).join("")}</div>`).join("")}</div>`:"";
+  const adH=per.some(a=>a.some(t=>!t.time))?`<div class="wk-ad"><div>종일</div>${per.map((a,pi)=>`<div data-ds="${days[pi]}">${a.filter(t=>!t.time).map(t=>`<div class="wk-chip${isDone(t,days[pi])?' dn':''}" data-id="${t.id}" style="background:${SCOPES[scopeOf(t)].hex}${priOf(t)===3?';opacity:.6':''}${isHi(t)?';outline:1.5px solid #ef4444':''}">${ckBtn(t,days[pi],"ck-s")}${_wkMark(t)}${esc(t.title)}</div>`).join("")}</div>`).join("")}</div>`:"";
   let rows="";for(let h=sh;h<eh;h++)rows+=`<div class="wk-hl" style="top:${(h-sh)*TL_PX}px"><span>${pad(h)}</span></div>`;
   const cols=days.map((ds,i)=>{
     const evs=lays[i].map(x=>{const t=x.t,top=(x.st/60-sh)*TL_PX,h=Math.max(20,(x.en-x.st)/60*TL_PX-2);
-      return `<div class="wk-ev${isDone(t,ds)?' dn':''}" data-id="${t.id}" style="top:${top}px;height:${h}px;left:${x.col*100/x.ncol}%;width:calc(${100/x.ncol}% - 1px);background:${SCOPES[scopeOf(t)].hex}${priOf(t)===3?';opacity:.6':''}${isHi(t)?';outline:1.5px solid #ef4444;outline-offset:-1.5px;font-weight:800;z-index:2':''}">${_wkMark(t)}${esc(t.title)}</div>`;}).join("");
+      return `<div class="wk-ev${isDone(t,ds)?' dn':''}" data-id="${t.id}" style="top:${top}px;height:${h}px;left:${x.col*100/x.ncol}%;width:calc(${100/x.ncol}% - 1px);background:${SCOPES[scopeOf(t)].hex}${priOf(t)===3?';opacity:.6':''}${isHi(t)?';outline:1.5px solid #ef4444;outline-offset:-1.5px;font-weight:800;z-index:2':''}">${ckBtn(t,ds,"ck-s ck-w")}${_wkMark(t)}${esc(t.title)}</div>`;}).join("");
     return `<div class="wk-col ${ds===td?'tdy':''}" data-ds="${ds}" style="left:calc(30px + (100% - 30px) * ${i}/7);width:calc((100% - 30px) / 7)">${evs}${ds===td?`<div class="wk-now" id="wkNow"></div>`:""}</div>`;
   }).join("");
   const _pt=document.getElementById("wkBox")?document.getElementById("wkBox").scrollTop:0;
   el.innerHTML=head+adH+`<div class="wk-box" id="wkBox"><div class="wk-body" id="wkGrid" data-sh="${sh}" style="height:${H}px">${rows}${cols}</div></div>`;
   const grid=document.getElementById("wkGrid");
   grid.onclick=e=>{
-    const ev=e.target.closest(".wk-ev");if(ev){const t=state.tasks.find(x=>x.id===ev.dataset.id);if(t)openEdit(t);return;}
+    const ev=e.target.closest(".wk-ev");if(ev){const t=state.tasks.find(x=>x.id===ev.dataset.id);const c=ev.closest(".wk-col");if(t)openEdit(t,c?c.dataset.ds:undefined);return;}
     const col=e.target.closest(".wk-col");if(!col)return;
     const y=e.clientY-grid.getBoundingClientRect().top;openAddAt(Math.min(eh-1,sh+Math.floor(y/TL_PX)),col.dataset.ds);
   };
-  el.querySelectorAll(".wk-chip").forEach(c=>c.onclick=()=>{const t=state.tasks.find(x=>x.id===c.dataset.id);if(t)openEdit(t);});
+  el.querySelectorAll(".wk-chip").forEach(c=>c.onclick=()=>{const t=state.tasks.find(x=>x.id===c.dataset.id);const pd=c.closest("[data-ds]");if(t)openEdit(t,pd?pd.dataset.ds:undefined);});
   updateWkNow();
   const key=mon+"|"+wkMode;
   if(wkScrollKey===key&&_pt)document.getElementById("wkBox").scrollTop=_pt;
@@ -3838,14 +3879,16 @@ async function updateStorageLine(){
 }
 
 /* ---------- 다가오는 일정 (2026-11-16) ---------- */
-let upDays=30,upSort="t";
+let upDays=30,upSort="t",upPast=false;
+function pastUndoneList(n){const t0=todayStr(),out=[];for(let i=n;i>=0;i--){const ds=_addDays(t0,-i);for(const t of tasksOnV(ds)){if(!_isPastUndone(t,ds))continue;out.push({t,ds,s:t.time?_evStart(t,ds):_pd(ds).getTime(),past:true});}}
+  out.sort((a,b)=>b.ds.localeCompare(a.ds)||b.s-a.s);return out;}
 function _evStart(t,ds){const d=_pd(ds);d.setHours(0,t.time?_tmin(t.time):0,0,0);return d.getTime();}
 function _evEnd(t,ds){const st=_tmin(t.time||"00:00");let en=t.endTime?_tmin(t.endTime):st+60;if(en<=st)en=st+60;const d=_pd(ds);d.setHours(0,en,0,0);return d.getTime();}
-function upcomingList(n){
+function upcomingList(n,withDone){
   const now=Date.now(),t0=todayStr(),out=[];
   for(let i=0;i<n;i++){const ds=_addDays(t0,i);
     for(const t of tasksOnV(ds)){
-      if(isDone(t,ds))continue;
+      if(isDone(t,ds)){if(withDone)out.push({t,ds,s:t.time?_evStart(t,ds):_pd(ds).getTime(),live:false,allday:!t.time,done:true});continue;}
       if(t.time){const s=_evStart(t,ds),e=_evEnd(t,ds);if(e<=now)continue;out.push({t,ds,s,live:s<=now&&now<e});}
       else out.push({t,ds,s:_pd(ds).getTime(),live:false,allday:true});
     }}
@@ -3864,14 +3907,15 @@ function relWhen(x){
   return dd===1?"내일":dd+"일 후";
 }
 function _dayHead(ds){const dd=Math.round((_pd(ds)-_pd(todayStr()))/86400000);const d=_pd(ds);const w=["일","월","화","수","목","금","토"][d.getDay()];const base=`${d.getMonth()+1}/${d.getDate()} (${w})`;return dd===0?"오늘 · "+base:dd===1?"내일 · "+base:base;}
-function upRow(x){const t=x.t;return `<div class="up-row${priCls(t)}" data-id="${t.id}" data-ds="${x.ds}" style="--scope:${SCOPES[scopeOf(t)].hex}"><span class="ut">${t.time?_hhmm(_tmin(t.time)):"종일"}</span><span class="un">${impStar(t)}${esc(t.title)}${t.desc?`<div style="font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(_firstLine(t.desc))}</div>`:""}<small>${evIcons(t)}</small></span><span class="ur">${x.live?"":relWhen(x)}</span><button class="ed-btn" data-ed="${t.id}" aria-label="수정">✏️</button></div>`;}
+function upRow(x,isPast){const t=x.t;const pd=isPast?_pd(x.ds):null;const when=isPast?`${pd.getMonth()+1}/${pd.getDate()}`:(t.time?_hhmm(_tmin(t.time)):"종일");return `<div class="up-row${priCls(t)}${x.done?" dn":""}" data-id="${t.id}" data-ds="${x.ds}" style="--scope:${SCOPES[scopeOf(t)].hex}">${ckBtn(t,x.ds,"ck-r")}<span class="ut">${when}</span><span class="un">${impStar(t)}${esc(t.title)}${t.desc?`<div style="font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(_firstLine(t.desc))}</div>`:""}<small>${evIcons(t)}</small></span><span class="ur">${isPast?'<span class="nochk">체크 안 함</span>':(x.done?"완료":(x.live?"":relWhen(x)))}</span><button class="ed-btn" data-ed="${t.id}" aria-label="수정">✏️</button></div>`;}
 function renderUpcoming(){
   const el=document.getElementById("upBody");if(!el||vwMode!=="u")return;
-  const list=upcomingList(upDays),openTd=activeTodos().filter(x=>!x.done&&x.due&&x.due<=todayStr()).length;
+  const list=upcomingList(upDays,true),past=pastUndoneList(7),openTd=activeTodos().filter(x=>!x.done&&x.due&&x.due<=todayStr()).length;
   let h=priCardHtml();
   {const sids={};state.tasks.filter(t=>t.seriesId).forEach(t=>{if(!sids[t.seriesId]||sids[t.seriesId].date<t.date)sids[t.seriesId]=t;});
    const t0=todayStr(),t7=_addDays(t0,7);
    Object.values(sids).filter(l=>l.date>=t0&&l.date<=t7).slice(0,2).forEach(l=>{h+=`<a class="up-link" data-ext="${l.id}">🔁 “${esc(l.title)}” 반복이 ${l.date.slice(5).replace("-","/")}에 끝나요 · 한 달 더 만들기</a>`;});}
+  if(past.length)h+=`<a class="up-link up-past" id="upPastT">${upPast?"▾":"▸"} 지난 일정 확인 ${past.length}건</a>`+(upPast?`<div class="up-pastbox">`+past.map(x=>upRow(x,true)).join("")+`</div>`:"");
   h+=`<div class="dseg dvseg" id="upSortSeg" style="margin:0 0 8px auto;width:170px"><button data-s="t" class="${upSort==="t"?"on":""}">시간순</button><button data-s="p" class="${upSort==="p"?"on":""}">우선순위순</button></div>`;
   h+=openTd?`<a class="up-link" id="upTd">✅ 오늘 남은 할일 ${openTd}개 →</a>`:"";
   if(!list.length)h+=`<div class="empty"><span class="em">🗓️</span>다가오는 일정이 없어요.<br>＋ 버튼으로 추가해보세요.</div>`;
@@ -3890,16 +3934,17 @@ function renderUpcoming(){
   bindPriCard(el);
   el.querySelectorAll("[data-ext]").forEach(a=>a.onclick=()=>{const t=state.tasks.find(x=>x.id===a.dataset.ext);if(t)extendSeries(t);});
   el.querySelectorAll("#upSortSeg button").forEach(b=>b.onclick=()=>{upSort=b.dataset.s;renderUpcoming();});
+  const pt=document.getElementById("upPastT");if(pt)pt.onclick=()=>{upPast=!upPast;renderUpcoming();};
   const tdl=document.getElementById("upTd");if(tdl)tdl.onclick=()=>switchTab("todo");
   const mb=document.getElementById("upMore");if(mb)mb.onclick=()=>{upDays+=30;renderUpcoming();};
-  el.querySelectorAll(".up-row").forEach(r=>r.onclick=()=>{const t=state.tasks.find(x=>x.id===r.dataset.id);if(t){gotoDate(r.dataset.ds);openEdit(t);}});
+  el.querySelectorAll(".up-row").forEach(r=>r.onclick=()=>{const t=state.tasks.find(x=>x.id===r.dataset.id);if(t){gotoDate(r.dataset.ds);openEdit(t,r.dataset.ds);}});
 }
 function renderNextCard(){
   const el=document.getElementById("nextCard");if(!el)return;
   const x=upcomingList(14).find(y=>!y.allday||true);
   if(true){el.innerHTML="";return;}
   el.innerHTML=`<div class="next-card" data-id="${x.t.id}"><b>${x.live?"진행 중":"다음 일정 · "+relWhen(x)}</b> &nbsp;${x.t.time?_hhmm(_tmin(x.t.time)):"종일"} ${esc(x.t.title)}</div>`;
-  el.firstChild.onclick=()=>{gotoDate(x.ds);openEdit(x.t);};
+  el.firstChild.onclick=()=>{gotoDate(x.ds);openEdit(x.t,x.ds);};
 }
 /* ---------- 처음 사용 안내 ---------- */
 const INTRO=[["📅","일정","빈 시간을 누르면 바로 추가돼요.\n다가오는 일정에서 가까운 약속부터 보고,\n사적업무·공적업무를 색으로 구분해요."],["✅","할일","한 줄 적고 Enter.\n체크하면 ‘완료한 일’에 날짜와 시간이 남아요.\n지난 할일은 사라지지 않고 맨 위에 모여요."],["📔","다이어리","일간·주간·월간으로 나눠 쓰고 사진도 붙여요.\n일정이 끝나면 일정 안에 회의록·결과를 남겨두세요."]];
